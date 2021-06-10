@@ -18,8 +18,8 @@
 
 #define SHADOW_MAP_RES 1024
 
-#define MODEL_PATH(NAME) ASSET_DIR "/glTF-Sample-Models/2.0/" NAME "/glTF/" NAME ".gltf"
-#define MODEL_TEXTURE(NAME) ASSET_DIR "/glTF-Sample-Models/2.0/" NAME "/glTF/" NAME "_img0.jpg"
+#define MODEL_PATH(NAME) ASSET_DIR "glTF/" NAME "/" NAME ".gltf"
+#define MODEL_TEXTURE(NAME) ASSET_DIR "glTF/" NAME "/" NAME "_img0.jpg"
 
 namespace hguo {
 
