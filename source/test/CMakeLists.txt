@@ -1,4 +1,4 @@
 add_subdirectory(triangleTest)
 add_subdirectory(textureTest)
 add_subdirectory(animationTest)
-add_subdirectory(shadowTest)
+# add_subdirectory(shadowTest)

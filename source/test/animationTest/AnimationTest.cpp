@@ -1,7 +1,5 @@
-#include <GLFW/glfw3.h>
 #include <assert.h>
 #include <cmath>
-#include "imgui.h"
 #include "shaders/AnimatedModelVS.h"
 #include "shaders/TexturePhongFS.h"
 #include "utilities/Loader.h"
@@ -116,12 +114,11 @@ void AnimationTest::update(double deltaTime) {
     assert(time >= 0.0);
 #endif
 
-    int rotate = (int)ImGui::IsKeyDown(GLFW_KEY_RIGHT) - (int)ImGui::IsKeyDown(GLFW_KEY_LEFT);
-    if (rotate) {
-        float degree = static_cast<float>(deltaTime) * rotate;
-        const Matrix4 R = rotateY(degree);
-        m_vs.M = R * m_vs.M;
-    }
+    // int rotate = (int)ImGui::IsKeyDown(GLFW_KEY_RIGHT) - (int)ImGui::IsKeyDown(GLFW_KEY_LEFT);
+
+    // FIXME: dummy elapsed time
+    const Matrix4 R = rotateY(0.003f);
+    m_vs.M = R * m_vs.M;
 
     // update animation
     for (auto& nodeAnim : m_scene.anim.nodeAnims) {

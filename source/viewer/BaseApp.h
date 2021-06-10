@@ -20,8 +20,6 @@ class BaseApp {
 
     virtual void finalize() = 0;
 
-    virtual void gui();
-
     virtual const Texture& getTexture() const { return m_renderTarget.m_colorBuffer; }
 
     int getWidth() const { return m_width; }

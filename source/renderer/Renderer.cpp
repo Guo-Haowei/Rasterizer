@@ -140,7 +140,7 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
                 VSOutput output;
                 output.position = bCoord.x * vs_out0.position + bCoord.y * vs_out1.position + bCoord.z * vs_out2.position;
                 output.position.z = 0.5f * output.position.z + 0.5f;  // normalize to [0, 1]
-                size_t index = y * width + x;
+                const size_t index = (height - y - 1) * width + x;
 
                 float depth = output.position.z;
 
@@ -175,11 +175,11 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
                     output.lightSpacePosition = bCoord.x * vs_out0.lightSpacePosition + bCoord.y * vs_out1.lightSpacePosition + bCoord.z * vs_out2.lightSpacePosition;
                 }
 
+                // fragment shader
                 colorBuffer.m_buffer[index] = m_pFragmentShader->processFragment(output);
             }
         }
     }
-    // fragment shader
 }
 
 }  // namespace hguo

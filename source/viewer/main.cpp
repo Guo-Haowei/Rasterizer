@@ -1,279 +1,111 @@
-// dear imgui: standalone example application for GLFW + OpenGL 3, using programmable pipeline
-// If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
-// (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan/Metal graphics context creation, etc.)
-
+#include <Windows.h>
+#undef min
+#undef max
 #include <stdio.h>
 #include "BaseApp.h"
-#include "imgui.h"
-#include "viewer/imgui_impl_glfw.h"
-#include "viewer/imgui_impl_opengl3.h"
 
-// About Desktop OpenGL function loaders:
-//  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
-//  Helper libraries are often used for this purpose! Here we are supporting a few common ones (gl3w, glew, glad).
-//  You may use another loader/header of your choice (glext, glLoadGen, etc.), or chose to manually implement your own.
-#if defined(IMGUI_IMPL_OPENGL_LOADER_GL3W)
-#include <GL/gl3w.h>  // Initialize with gl3wInit()
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLEW)
-#include <GL/glew.h>  // Initialize with glewInit()
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLAD)
-#include <glad/glad.h>  // Initialize with gladLoadGL()
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLBINDING2)
-#define GLFW_INCLUDE_NONE       // GLFW including OpenGL headers causes ambiguity or multiple definition errors.
-#include <glbinding/Binding.h>  // Initialize with glbinding::Binding::initialize()
-#include <glbinding/gl/gl.h>
-using namespace gl;
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLBINDING3)
-#define GLFW_INCLUDE_NONE  // GLFW including OpenGL headers causes ambiguity or multiple definition errors.
-#include <glbinding/gl/gl.h>
-#include <glbinding/glbinding.h>  // Initialize with glbinding::initialize()
+constexpr int WIDTH = 1200;
+constexpr int HEIGHT = 800;
 
-using namespace gl;
-#else
-#include IMGUI_IMPL_OPENGL_LOADER_CUSTOM
-#endif
-
-// Include glfw3.h after our OpenGL definitions
-#include <GLFW/glfw3.h>
-
-// [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
-// To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
-// Your own project should not be affected, as you are likely to link with a newer binary of GLFW that is adequate for your version of Visual Studio.
-#if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
-#pragma comment(lib, "legacy_stdio_definitions")
-#endif
-
-static void glfw_error_callback(int error, const char* description) {
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_DESTROY:
+            ::PostQuitMessage(0);
+            return 0;
+        default:
+            return ::DefWindowProc(hWnd, msg, wParam, lParam);
+    }
 }
 
+using namespace hguo;
+
 int main(int, char**) {
-    // Setup window
-    glfwSetErrorCallback(glfw_error_callback);
-    if (!glfwInit())
-        return 1;
-
-    // Decide GL+GLSL versions
-    // GL 3.2 + GLSL 150
-    const char* glsl_version = "#version 330 core\n";
-#if __APPLE__
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
-#endif
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-
-    // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(hguo::g_pApp->getWidth(),
-                                          hguo::g_pApp->getHeight(),
-                                          hguo::g_pApp->getTitle().c_str(),
-                                          NULL,
-                                          NULL);
-    if (window == NULL)
-        return 1;
-    glfwMakeContextCurrent(window);
-    // glfwSwapInterval(1); // Enable vsync
-
-    // Initialize OpenGL loader
-#if defined(IMGUI_IMPL_OPENGL_LOADER_GL3W)
-    bool err = gl3wInit() != 0;
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLEW)
-    bool err = glewInit() != GLEW_OK;
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLAD)
-    bool err = gladLoadGL() == 0;
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLBINDING2)
-    bool err = false;
-    glbinding::Binding::initialize();
-#elif defined(IMGUI_IMPL_OPENGL_LOADER_GLBINDING3)
-    bool err = false;
-    glbinding::initialize([](const char* name) { return (glbinding::ProcAddress)glfwGetProcAddress(name); });
-#else
-    bool err = false;  // If you use IMGUI_IMPL_OPENGL_LOADER_CUSTOM, your loader is likely to requires some form of initialization.
-#endif
-    if (err) {
-        fprintf(stderr, "Failed to initialize OpenGL loader!\n");
-        return 1;
-    }
-
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
-
-    // Setup Platform/Renderer bindings
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'docs/FONTS.txt' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
-
-    /// opengl stuff for visualization
-    //// buffer
-    GLfloat vertices[] = {
-        -1.0f, 1.0f,
-        -1.0f, -1.0f,
-        1.0f, 1.0f,
-        1.0f, 1.0f,
-        -1.0f, -1.0f,
-        1.0f, -1.0f
+    WNDCLASSEX wc = {
+        sizeof(WNDCLASSEX),     // cbSize
+        CS_CLASSDC,             // sylte
+        WndProc,                // plfnWndProc
+        0,                      // cbClsExtra
+        0,                      // cbWndExxtra
+        GetModuleHandle(NULL),  // hInstance
+        NULL,                   // hIcon
+        NULL,                   // hCursor
+        NULL,                   // hbrBackground
+        NULL,                   // lpszMenuName
+        "MainWindow",           // lpszClassName
+        NULL,                   // hIconSm
     };
-    GLuint vertexArray, vertexBuffer;
-    glGenVertexArrays(1, &vertexArray);
-    glBindVertexArray(vertexArray);
-    glGenBuffers(1, &vertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    // glBufferStorage(GL_ARRAY_BUFFER, sizeof(GLfloat) * 12, vertices, 0);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 12, vertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-    //// shaders
-    const GLchar* vertexShaderSource =
-        "layout (location = 0) in vec2 in_position;\n"
-        "out vec2 pass_uv;\n"
-        "void main()\n"
-        "{\n"
-        "    pass_uv = 0.5 * in_position + 0.5;\n"
-        "    gl_Position = vec4(in_position, 0.5, 1);\n"
-        "}\n";
 
-    const GLchar* fragmentShaderSource =
-        "in vec2 pass_uv;\n"
-        "out vec4 out_color;\n"
-        "uniform sampler2D u_texture;\n"
-        "void main()\n"
-        "{\n"
-        "    out_color = texture(u_texture, pass_uv);\n"
-        // "    out_color = vec4(pass_uv, 0, 1);\n"
-        "}\n";
-    const GLchar* vertexShaderSources[2] = { glsl_version, vertexShaderSource };
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 2, vertexShaderSources, NULL);
-    glCompileShader(vertexShader);
-    CheckShader(vertexShader, "my vertex shader");
+    ::RegisterClassEx(&wc);
 
-    const GLchar* fragmentShaderSources[2] = { glsl_version, fragmentShaderSource };
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 2, fragmentShaderSources, NULL);
-    glCompileShader(fragmentShader);
-    CheckShader(fragmentShader, "my fragment shader");
+    HWND hWnd = ::CreateWindow(wc.lpszClassName,            // lpClassName
+                               g_pApp->getTitle().c_str(),  // lpWindowName
+                               WS_OVERLAPPED | WS_SYSMENU,  // dwStyle
+                               CW_USEDEFAULT,               // x
+                               CW_USEDEFAULT,               // y
+                               g_pApp->getWidth(),          // nWidth
+                               g_pApp->getHeight(),         // nHeight
+                               NULL,                        // hWndParent
+                               NULL,                        // hMenu
+                               wc.hInstance,                // hInstance
+                               NULL                         // lpParam
+    );
 
-    GLuint shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    CheckProgram(shaderProgram, "shader program");
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    static const int textureBinding = 1;
-    int textureLocation = glGetUniformLocation(shaderProgram, "u_texture");
-    glUseProgram(shaderProgram);
-    glUniform1i(textureLocation, textureBinding);
-    //// textures
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glActiveTexture(GL_TEXTURE0 + textureBinding);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-
-    hguo::g_pApp->initialize();
-
-    double prevTime = glfwGetTime();
-    // Main loop
-    while (!glfwWindowShouldClose(window)) {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        glfwPollEvents();
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        // if (show_demo_window)
-        // ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
-        hguo::g_pApp->gui();
-
-        // Rendering
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        // glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        // draw my texture
-        double currentTime = glfwGetTime();
-        hguo::g_pApp->update(currentTime - prevTime);
-        prevTime = currentTime;
-
-        const hguo::Texture& buffer = hguo::g_pApp->getTexture();
-
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexImage2D(GL_TEXTURE_2D,
-                     0,
-                     GL_RGBA,
-                     buffer.m_width,
-                     buffer.m_height,
-                     0,
-                     GL_RGBA,
-                     GL_UNSIGNED_BYTE,
-                     buffer.getData());
-        glFinish();
-
-        glUseProgram(shaderProgram);
-        glBindVertexArray(vertexArray);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        glfwSwapBuffers(window);
+    if (!hWnd) {
+        printf("Failed to create window");
+        return 1;
     }
 
-    // clean up
-    glDeleteProgram(shaderProgram);
-    glDeleteBuffers(1, &vertexBuffer);
-    glDeleteVertexArrays(1, &vertexArray);
-    glDeleteTextures(1, &texture);
+    ::ShowWindow(hWnd, SW_SHOWDEFAULT);
+    ::UpdateWindow(hWnd);
 
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    g_pApp->initialize();
 
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    // TODO: allow resizing
+    HDC hDC = GetDC(hWnd);
+    BITMAP bitmap {};
+    HGDIOBJ hBitmap = GetCurrentObject(hDC, OBJ_BITMAP);
+    GetObject(hBitmap, sizeof(BITMAP), &bitmap);
 
+    MSG msg {};
+    while (msg.message != WM_QUIT) {
+        if (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+            continue;
+        }
+
+        // render
+        // FIXME: dummy elapsed time
+        g_pApp->update(.003);
+        const Texture& buffer = g_pApp->getTexture();
+
+        // Creating temp bitmap
+        HBITMAP map = CreateBitmap(bitmap.bmWidth,     // width
+                                   bitmap.bmHeight,    // height
+                                   1,                  // Color Planes
+                                   32,                 // 4 * 8 bits
+                                   buffer.getData());  // pointer to array
+
+        // Temp HDC to copy picture
+        HDC src = CreateCompatibleDC(hDC);  // hdc - Device context for window, I've got earlier with GetDC(hWnd) or GetDC(NULL);
+        SelectObject(src, map);             // Inserting picture into our temp HDC
+        // Copy image from temp HDC to window
+        BitBlt(hDC,              // Destination
+               0,                // x and
+               0,                // y - upper-left corner of place, where we'd like to copy
+               bitmap.bmWidth,   // width of the region
+               bitmap.bmHeight,  // height
+               src,              // source
+               0,                // x and
+               0,                // y of upper left corner  of part of the source, from where we'd like to copy
+               SRCCOPY);         // Defined DWORD to juct copy pixels. Watch more on msdn;
+
+        DeleteObject(map);
+        DeleteDC(src);  // Deleting temp HDC
+    }
+
+    ::ReleaseDC(hWnd, hDC);
+    ::DestroyWindow(hWnd);
+    ::UnregisterClass(wc.lpszClassName, wc.hInstance);
     return 0;
 }
