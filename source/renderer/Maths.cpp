@@ -1,5 +1,5 @@
 #include "Maths.h"
-#include <assert.h>
+#include "common/core_assert.h"
 
 namespace hguo {
 
@@ -20,10 +20,7 @@ Vector3 barycentric(const Vector2& a, const Vector2& b, const Vector2& c, const 
      * CA.x * CB.y = CA.y * CB.x == 0 => CA.y / CA.x == CB.y / CB.x
      * CA // CB => A, B and C are on the same line
      */
-#ifdef _DEBUG
-    // we probably want to discard the triangle before rendering
-    assert(uvw.z != 0.0f);
-#endif
+    ASSERT(uvw.z != 0.0f);
     uvw /= uvw.z;
     uvw.z -= (uvw.x + uvw.y);
     return uvw;

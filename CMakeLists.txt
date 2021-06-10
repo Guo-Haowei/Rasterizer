@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # three.math
 message("Configuring three.math...")
+include_directories(source/)
 include_directories(source/three.math/)
 add_subdirectory(source/three.math/)
 

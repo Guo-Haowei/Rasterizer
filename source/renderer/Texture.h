@@ -1,8 +1,8 @@
 #pragma once
-#include <assert.h>
 #include <algorithm>  // std::fill
 #include <vector>
 #include "Maths.h"
+#include "common/core_assert.h"
 
 namespace hguo {
 
@@ -16,11 +16,9 @@ class TextureBase {
     };
 
     void create(const CreateInfo& info) {
+        ASSERT(info.width != 0 && info.height != 0);
         m_width = info.width;
         m_height = info.height;
-#ifdef _DEBUG
-        assert(m_width != 0 && m_height != 0);
-#endif
         m_buffer.resize(m_width * m_height);
         memcpy(&m_buffer[0], info.data, sizeof(T) * m_width * m_height);
     }

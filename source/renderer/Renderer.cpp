@@ -1,8 +1,8 @@
 #include "Renderer.h"
-#include <assert.h>
 #include <algorithm>
 #include <iostream>
 #include "Maths.h"
+#include "common/core_assert.h"
 
 namespace hguo {
 
@@ -10,9 +10,7 @@ Renderer::Renderer() {
 }
 
 void Renderer::setSize(int width, int height) {
-#ifdef _DEBUG
-    assert(width > 0 && height > 0);
-#endif
+    ASSERT(width > 0 && height > 0);
     m_pRenderTarget->resize(width, height);
     m_pRenderTarget->m_colorBuffer.clear(m_clearColor);
     m_pRenderTarget->m_depthBuffer.clear(m_clearDepth);
@@ -41,10 +39,9 @@ void Renderer::setCullState(CullState cullState) {
 }
 
 void Renderer::drawArrays(size_t start, size_t count) {
-#ifdef _DEBUG
-    assert(count % 3 == 0);
-    assert(start % 3 == 0);
-#endif
+    ASSERT(count % 3 == 0);
+    ASSERT(start % 3 == 0);
+
     for (size_t i = start; i < start + count;) {
         const VSInput& vs1 = m_pVertices[i++];
         const VSInput& vs2 = m_pVertices[i++];
@@ -54,10 +51,9 @@ void Renderer::drawArrays(size_t start, size_t count) {
 }
 
 void Renderer::drawElements(size_t start, size_t count) {
-#ifdef _DEBUG
-    assert(count % 3 == 0);
-    assert(start % 3 == 0);
-#endif
+    ASSERT(count % 3 == 0);
+    ASSERT(start % 3 == 0);
+
     for (size_t i = start; i < start + count;) {
         const VSInput& vs1 = m_pVertices[m_pIndices[i++]];
         const VSInput& vs2 = m_pVertices[m_pIndices[i++]];

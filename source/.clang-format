@@ -6,3 +6,6 @@ IncludeBlocks: Merge
 SpaceBeforeCpp11BracedList: true
 AllowAllArgumentsOnNextLine: true
 Cpp11BracedListStyle: false
+
+# macro
+AlignConsecutiveMacros: true

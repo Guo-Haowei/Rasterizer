@@ -1,11 +1,11 @@
 #include "Loader.h"
 #define STB_IMAGE_IMPLEMENTATION
-#include <assert.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <algorithm>
 #include <assimp/Importer.hpp>
 #include <iostream>
+#include "common/core_assert.h"
 #include "stb_image.h"
 
 namespace hguo {
@@ -120,9 +120,7 @@ void AssimpLoader::processMesh(Scene& scene, const aiMesh* aimesh) {
             }
             std::string boneName = bone->mName.C_Str();
             auto it = m_nodeLookupTable.find(boneName);
-#ifdef _DEBUG
             assert(it != m_nodeLookupTable.end());
-#endif
             Matrix4 offset(&bone->mOffsetMatrix.a1);
             offset = three::transpose(offset);
             mesh.bones.push_back({ boneName, it->second, offset });
@@ -130,7 +128,7 @@ void AssimpLoader::processMesh(Scene& scene, const aiMesh* aimesh) {
     }
 
     // test
-#ifdef _DEBUG
+#if USING(DEV_BUILD)
     for (const auto& weight : mesh.weights) {
         float sum = weight.x + weight.y + weight.z + weight.w;
         static const float error = 0.0001f;
@@ -178,23 +176,19 @@ void AssimpLoader::processAnimation(Scene& scene, const aiAnimation* aianim) {
         aiNodeAnim* channel = aianim->mChannels[channelIndex];
         std::string nodeName = channel->mNodeName.C_Str();
         auto it = m_nodeLookupTable.find(nodeName);
-#ifdef _DEBUG
         assert(it != m_nodeLookupTable.end());
-#endif
         Node* node = it->second;
 
         NodeAnimation nodeAnim;
         nodeAnim.boneNode = node;
-#ifdef _DEBUG
         assert(channel->mNumPositionKeys == channel->mNumRotationKeys);
         assert(channel->mNumRotationKeys == channel->mNumScalingKeys);
-#endif
         for (unsigned int frameIndex = 0; frameIndex < channel->mNumPositionKeys; ++frameIndex) {
             const auto& position = channel->mPositionKeys[frameIndex];
             const auto& scale = channel->mScalingKeys[frameIndex];
             const auto& rotation = channel->mRotationKeys[frameIndex];
             const double positionTime = position.mTime;
-#ifdef _DEBUG
+#if USING(DEV_BUILD)
             const double scaleTime = scale.mTime;
             const double rotationTime = rotation.mTime;
             assert(positionTime == scaleTime);

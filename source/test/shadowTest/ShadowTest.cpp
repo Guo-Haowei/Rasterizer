@@ -192,7 +192,7 @@ static void findAnimMatrix(const NodeAnimation& anim, double time, Matrix4& loca
         }
     }
 
-    assert(0);
+    ASSERT(0);
 }
 
 void ShadowTest::update(double deltaTime) {
@@ -203,10 +203,8 @@ void ShadowTest::update(double deltaTime) {
     // time
     const Animation& anim = m_scene.anim;
     double time = std::fmod(m_elapsedTime, anim.durationInseconds);
-#ifdef _DEBUG
-    assert(time <= anim.durationInseconds);
-    assert(time >= 0.0);
-#endif
+    ASSERT(time <= anim.durationInseconds);
+    ASSERT(time >= 0.0);
 
     // update animation
     for (auto& nodeAnim : m_scene.anim.nodeAnims) {

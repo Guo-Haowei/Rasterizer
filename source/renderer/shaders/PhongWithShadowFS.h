@@ -1,5 +1,4 @@
 #pragma once
-#include <assert.h>
 #include "../Maths.h"
 #include "../ShaderProgram.h"
 #include "../Texture.h"

@@ -102,17 +102,15 @@ static void findAnimMatrix(const NodeAnimation& anim, double time, Matrix4& loca
         }
     }
 
-    assert(0);
+    ASSERT(0);
 }
 
 void AnimationTest::update(double deltaTime) {
     // time
     const Animation& anim = m_scene.anim;
     double time = std::fmod(m_elapsedTime, anim.durationInseconds);
-#ifdef _DEBUG
-    assert(time <= anim.durationInseconds);
-    assert(time >= 0.0);
-#endif
+    ASSERT(time <= anim.durationInseconds);
+    ASSERT(time >= 0.0);
 
     // int rotate = (int)ImGui::IsKeyDown(GLFW_KEY_RIGHT) - (int)ImGui::IsKeyDown(GLFW_KEY_LEFT);
 
