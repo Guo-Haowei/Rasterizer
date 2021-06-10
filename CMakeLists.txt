@@ -17,8 +17,8 @@ add_subdirectory(external/glad)
 
 # three.math
 message("Configuring three.math...")
-include_directories(code/three.math/)
-add_subdirectory(code/three.math/)
+include_directories(source/three.math/)
+add_subdirectory(source/three.math/)
 
 # imgui
 message("Configuring imgui...")
@@ -38,4 +38,4 @@ add_library(imgui::imgui ALIAS imgui)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_subdirectory(code)
+add_subdirectory(source)

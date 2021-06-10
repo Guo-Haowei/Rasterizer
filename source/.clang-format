@@ -1,0 +1,8 @@
+BasedOnStyle: Google
+PointerBindsToType: true
+IndentWidth: 4
+ColumnLimit: 0
+IncludeBlocks: Merge
+SpaceBeforeCpp11BracedList: true
+AllowAllArgumentsOnNextLine: true
+Cpp11BracedListStyle: false
