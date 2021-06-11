@@ -1,8 +1,5 @@
-#include <Windows.h>
-#undef min
-#undef max
-#include <stdio.h>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include "application.h"
 #include "example_base.h"

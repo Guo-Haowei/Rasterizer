@@ -1,12 +1,12 @@
-#include "Loader.h"
+#include "loader.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <stb_image.h>
 #include <algorithm>
 #include <assimp/Importer.hpp>
 #include <iostream>
 #include "common/core_assert.h"
-#include "stb_image.h"
 
 namespace rs {
 

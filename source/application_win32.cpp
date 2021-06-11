@@ -19,7 +19,6 @@ static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void initialize() {
     g_pExample->initialize();
-
     g_wc.cbSize = sizeof(WNDCLASSEX);
     g_wc.style = CS_CLASSDC;
     g_wc.lpfnWndProc = WndProc;

@@ -1,8 +1,8 @@
 #pragma once
 #include <string>
 #include <unordered_map>
-#include "Scene.h"
 #include "rasterizer/Texture.h"
+#include "scene.h"
 
 struct aiMesh;
 struct aiNode;

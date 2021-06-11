@@ -167,6 +167,7 @@ void AnimationTest::update(double deltaTime) {
     // time
     const Animation &anim = m_scene.anim;
     double time = std::fmod(m_elapsedTime, anim.durationInseconds);
+    time = time == time ? time : 0.0;
     ASSERT(time <= anim.durationInseconds);
     ASSERT(time >= 0.0f);
 
