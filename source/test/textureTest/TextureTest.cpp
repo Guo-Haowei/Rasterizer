@@ -8,6 +8,8 @@
 
 namespace hguo {
 
+using namespace gfx;
+
 VSInput g_vertices[4];
 
 const unsigned int g_indices[6] = {
@@ -31,12 +33,13 @@ class TextureTest : public hguo::BaseApp {
 
     Texture m_texture;
 
-    Matrix4 P;
-    Matrix4 V;
-    Matrix4 PV;
+    mat4 P;
+    mat4 V;
+    mat4 PV;
 };
 
-TextureTest::TextureTest() : BaseApp({ 900, 540, "Texture" }) {
+TextureTest::TextureTest()
+    : BaseApp({ 900, 540, "Texture" }) {
 }
 
 void TextureTest::initialize() {
@@ -55,8 +58,8 @@ void TextureTest::initialize() {
 
     // constant buffer
     const float fovy = 0.785398f;  // 45.0 degree
-    V = three::lookAt(Vector3(0, -2, 2), Vector3::Zero, Vector3::UnitY);
-    P = three::perspectiveRH_NO(fovy, (float)m_width / (float)m_height, 0.1f, 10.0f);
+    V = lookAt(vec3(0, -2, 2), vec3(0), vec3(0, 1, 0));
+    P = perspectiveRH_NO(fovy, (float)m_width / (float)m_height, 0.1f, 10.0f);
     PV = P * V;
 
     // texture
@@ -65,12 +68,12 @@ void TextureTest::initialize() {
 }
 
 void TextureTest::update(double deltaTime) {
-    static const Matrix4 M0 = three::translate(Vector3(0.0f, 0.0f, 0.5f));
-    static const Matrix4 M1 = three::translate(Vector3(0.0f, 0.0f, -0.5f));
+    static const mat4 M0 = translate(mat4(1), vec3(0.0f, 0.0f, 0.5f));
+    static const mat4 M1 = translate(mat4(1), vec3(0.0f, 0.0f, -0.5f));
     m_renderer.clear(Renderer::COLOR_DEPTH_BUFFER_BIT);
     m_vs.PVM = PV * M0;
     m_renderer.drawElements(0, 6);
-    m_vs.PVM = PV * Matrix4::Identity;
+    m_vs.PVM = PV * mat4(1);
     m_renderer.drawElements(0, 6);
     m_vs.PVM = PV * M1;
     m_renderer.drawElements(0, 6);

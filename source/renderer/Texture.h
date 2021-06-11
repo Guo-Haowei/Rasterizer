@@ -1,8 +1,8 @@
 #pragma once
 #include <algorithm>  // std::fill
 #include <vector>
-#include "Maths.h"
 #include "common/core_assert.h"
+#include "common/linalg.h"
 
 namespace hguo {
 
@@ -23,7 +23,7 @@ class TextureBase {
         memcpy(&m_buffer[0], info.data, sizeof(T) * m_width * m_height);
     }
 
-    const T& sample(Vector2 uv) const {
+    const T& sample(gfx::vec2 uv) const {
         int x = static_cast<int>(uv.x * m_width);
         int y = static_cast<int>(uv.y * m_height);
         if (x < 0 || x >= m_width || y < 0 || y >= m_height) {
@@ -53,7 +53,7 @@ class TextureBase {
     static const T sDefaultValue;
 };
 
-typedef TextureBase<Color> Texture;
+typedef TextureBase<gfx::Color> Texture;
 typedef TextureBase<float> DepthBuffer;
 typedef Texture ColorBuffer;
 

@@ -4,10 +4,9 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # three.math
-message("Configuring three.math...")
+message("Configuring glm...")
 include_directories(source/)
-include_directories(source/three.math/)
-add_subdirectory(source/three.math/)
+include_directories(external/glm/)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 

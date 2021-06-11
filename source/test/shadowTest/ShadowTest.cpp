@@ -1,3 +1,4 @@
+#if 0
 #include <GLFW/glfw3.h>
 #include <assert.h>
 #include <cmath>
@@ -258,3 +259,4 @@ void ShadowTest::finalize() {
 BaseApp* g_pApp = new ShadowTest();
 
 }  // namespace hguo
+#endif

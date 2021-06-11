@@ -1,14 +1,15 @@
-#include "Maths.h"
 #include "ShaderProgram.h"
 #include "viewer/BaseApp.h"
 
 namespace hguo {
 
+using namespace gfx;
 VSInput g_vertices[3];
 
 class TriangleVS : public IVertexShader {
    public:
-    TriangleVS() : IVertexShader(sVaryingFlags) {}
+    TriangleVS()
+        : IVertexShader(sVaryingFlags) {}
 
     virtual VSOutput processVertex(const VSInput& input) override {
         VSOutput vs_output;
@@ -47,7 +48,8 @@ class TriangleApp : public hguo::BaseApp {
     TriangleFS m_fs;
 };
 
-TriangleApp::TriangleApp() : BaseApp({ 900, 540, "Triangle" }) {
+TriangleApp::TriangleApp()
+    : BaseApp({ 900, 540, "Triangle" }) {
 }
 
 void TriangleApp::initialize() {

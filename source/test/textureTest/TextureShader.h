@@ -1,5 +1,4 @@
 #pragma once
-#include "Maths.h"
 #include "ShaderProgram.h"
 #include "Texture.h"
 
@@ -7,12 +6,13 @@ namespace hguo {
 
 class TextureVs : public IVertexShader {
    public:
-    TextureVs() : IVertexShader(sVaryingFlags) {}
+    TextureVs()
+        : IVertexShader(sVaryingFlags) {}
 
     virtual VSOutput processVertex(const VSInput& input) override {
         VSOutput vs_output;
         vs_output.position = input.position;
-        vs_output.uv = Vector2(input.position);
+        vs_output.uv = gfx::vec2(input.position);
         vs_output.uv += 0.5f;
         vs_output.uv.y = 1.0f - vs_output.uv.y;
         vs_output.position = PVM * vs_output.position;
@@ -20,7 +20,7 @@ class TextureVs : public IVertexShader {
     }
 
    public:
-    Matrix4 PVM;
+    gfx::mat4 PVM;
 
    private:
     static const unsigned int sVaryingFlags = VARYING_UV;
@@ -28,8 +28,8 @@ class TextureVs : public IVertexShader {
 
 class TextureFs : public IFragmentShader {
    public:
-    virtual Color processFragment(const VSOutput& input) override {
-        Color color = m_cubeTexture->sample(input.uv);
+    virtual gfx::Color processFragment(const VSOutput& input) override {
+        gfx::Color color = m_cubeTexture->sample(input.uv);
         return color;
     }
 

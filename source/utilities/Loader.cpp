@@ -10,6 +10,8 @@
 
 namespace hguo {
 
+using namespace gfx;
+
 void loadTexture(Texture& texture, const char* path) {
     int width, height, channel;
     unsigned char* data = stbi_load(path, &width, &height, &channel, 0);
@@ -87,23 +89,23 @@ void AssimpLoader::processMesh(Scene& scene, const aiMesh* aimesh) {
     mesh.positions.reserve(aimesh->mNumVertices);
     for (uint32_t i = 0; i < aimesh->mNumVertices; ++i) {
         auto& position = aimesh->mVertices[i];
-        mesh.positions.push_back(Vector3(position.x, position.y, position.z));
+        mesh.positions.push_back(vec3(position.x, position.y, position.z));
         auto& normal = aimesh->mNormals[i];
-        mesh.normals.push_back(Vector3(normal.x, normal.y, normal.z));
+        mesh.normals.push_back(vec3(normal.x, normal.y, normal.z));
         if (aimesh->mTextureCoords[0]) {
             auto& uv = aimesh->mTextureCoords[0][i];
-            mesh.uvs.push_back(Vector2(uv.x, uv.y));
+            mesh.uvs.push_back(vec2(uv.x, uv.y));
         } else {
-            mesh.uvs.push_back(Vector2(0.0f));
+            mesh.uvs.push_back(vec2(0.0f));
         }
     }
 
     if (aimesh->HasBones()) {
         mesh.bones.reserve(aimesh->mNumBones);
         mesh.boneIds.resize(aimesh->mNumVertices);
-        std::fill(mesh.boneIds.begin(), mesh.boneIds.end(), Vector4i::Zero);
+        std::fill(mesh.boneIds.begin(), mesh.boneIds.end(), ivec4(0));
         mesh.weights.resize(aimesh->mNumVertices);
-        std::fill(mesh.weights.begin(), mesh.weights.end(), Vector4::Zero);
+        std::fill(mesh.weights.begin(), mesh.weights.end(), vec4(0));
         for (uint32_t boneId = 0; boneId < aimesh->mNumBones; ++boneId) {
             aiBone* bone = aimesh->mBones[boneId];
             for (uint32_t j = 0; j < bone->mNumWeights; ++j) {
@@ -121,8 +123,14 @@ void AssimpLoader::processMesh(Scene& scene, const aiMesh* aimesh) {
             std::string boneName = bone->mName.C_Str();
             auto it = m_nodeLookupTable.find(boneName);
             assert(it != m_nodeLookupTable.end());
-            Matrix4 offset(&bone->mOffsetMatrix.a1);
-            offset = three::transpose(offset);
+            /// NOTE: could be broken here
+            const auto& tmp = bone->mOffsetMatrix;
+            mat4 offset(
+                tmp.a1, tmp.b1, tmp.c1, tmp.d1,  //
+                tmp.a2, tmp.b2, tmp.c2, tmp.d2,  //
+                tmp.a3, tmp.b3, tmp.c3, tmp.d3,  //
+                tmp.a4, tmp.b4, tmp.c4, tmp.d4   //
+            );
             mesh.bones.push_back({ boneName, it->second, offset });
         }
     }
@@ -156,7 +164,13 @@ std::shared_ptr<Node> AssimpLoader::processNode(aiNode* ainode, std::shared_ptr<
 
     m_nodeLookupTable.insert({ node->name, node.get() });
 
-    node->transform = transpose(Matrix4(&ainode->mTransformation.a1));
+    const auto& tmp = ainode->mTransformation;
+    node->transform = mat4(
+        tmp.a1, tmp.b1, tmp.c1, tmp.d1,  //
+        tmp.a2, tmp.b2, tmp.c2, tmp.d2,  //
+        tmp.a3, tmp.b3, tmp.c3, tmp.d3,  //
+        tmp.a4, tmp.b4, tmp.c4, tmp.d4   //
+    );
 
     for (uint32_t childIndex = 0; childIndex < ainode->mNumChildren; ++childIndex) {
         aiNode* child = ainode->mChildren[childIndex];
@@ -194,9 +208,9 @@ void AssimpLoader::processAnimation(Scene& scene, const aiAnimation* aianim) {
             assert(positionTime == scaleTime);
             assert(positionTime == rotationTime);
 #endif
-            nodeAnim.keyframes.push_back({ Vector3(position.mValue.x, position.mValue.y, position.mValue.z),
-                                           Vector3(scale.mValue.x, scale.mValue.y, scale.mValue.z),
-                                           Quaternion(rotation.mValue.x, rotation.mValue.y, rotation.mValue.z, rotation.mValue.w),
+            nodeAnim.keyframes.push_back({ vec3(position.mValue.x, position.mValue.y, position.mValue.z),
+                                           vec3(scale.mValue.x, scale.mValue.y, scale.mValue.z),
+                                           quat(rotation.mValue.w, rotation.mValue.x, rotation.mValue.y, rotation.mValue.z),
                                            positionTime / ticksPersecond });
         }
         anim.nodeAnims.push_back(nodeAnim);

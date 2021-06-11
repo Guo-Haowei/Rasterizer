@@ -9,10 +9,12 @@
 #define ASSET_DIR
 #endif
 
-#define MODEL_PATH(NAME) ASSET_DIR "glTF/" NAME "/" NAME ".gltf"
+#define MODEL_PATH(NAME)    ASSET_DIR "glTF/" NAME "/" NAME ".gltf"
 #define MODEL_TEXTURE(NAME) ASSET_DIR "glTF/" NAME "/" NAME "_img0.jpg"
 
 namespace hguo {
+
+using namespace gfx;
 
 class AnimationTest : public hguo::BaseApp {
    public:
@@ -33,13 +35,14 @@ class AnimationTest : public hguo::BaseApp {
     std::vector<VSInput> m_vertices;
     std::vector<unsigned int> m_indices;
 
-    Matrix4 m_P;
-    Matrix4 m_V;
-    Matrix4 m_PV;
+    gfx::mat4 m_P;
+    gfx::mat4 m_V;
+    gfx::mat4 m_PV;
     double m_elapsedTime = 0;
 };
 
-AnimationTest::AnimationTest() : BaseApp({ 900, 540, "Animation" }) {
+AnimationTest::AnimationTest()
+    : BaseApp({ 900, 540, "Animation" }) {
 }
 
 void AnimationTest::initialize() {
@@ -49,10 +52,10 @@ void AnimationTest::initialize() {
 
     // constant buffer
     const float fovy = 0.785398f;  // 45.0 degree
-    m_V = three::lookAt(Vector3(0, 2, 3), Vector3::UnitY, Vector3::UnitY);
-    m_P = three::perspectiveRH_NO(fovy, (float)m_width / (float)m_height, 0.1f, 20.0f);
+    m_V = lookAt(vec3(0, 2, 3), vec3(0, 1, 0), vec3(0, 1, 0));
+    m_P = perspectiveRH_NO(fovy, (float)m_width / (float)m_height, 0.1f, 20.0f);
     m_PV = m_P * m_V;
-    m_vs.M = Matrix4::Identity;
+    m_vs.M = mat4(1);
     m_vs.PV = m_PV;
 
     // load model
@@ -62,8 +65,8 @@ void AnimationTest::initialize() {
     m_indices = mesh.indices;
     for (size_t i = 0; i < mesh.positions.size(); ++i) {
         VSInput input;
-        input.position = Vector4(mesh.positions[i], 1.0f);
-        input.normal = Vector4(mesh.normals[i], 0.0f);
+        input.position = vec4(mesh.positions[i], 1.0f);
+        input.normal = vec4(mesh.normals[i], 0.0f);
         input.uv = mesh.uvs[i];
         input.weights = mesh.weights[i];
         input.boneId = mesh.boneIds[i];
@@ -75,12 +78,10 @@ void AnimationTest::initialize() {
 
     m_renderer.setVertexArray(m_vertices.data());
     m_renderer.setIndexArray(m_indices.data());
-    // m_renderer.setCullState(Renderer::FRONT_FACE);
     m_renderer.setCullState(Renderer::BACK_FACE);
-    // m_renderer.setClearColor(100, 120, 100, 255);
 }
 
-static void findAnimMatrix(const NodeAnimation& anim, double time, Matrix4& localTransform) {
+static void findAnimMatrix(const NodeAnimation& anim, double time, mat4& localTransform) {
     size_t endFrameIndex = 0;
     const size_t frameCount(anim.keyframes.size());
     for (; endFrameIndex < frameCount; ++endFrameIndex) {
@@ -90,13 +91,13 @@ static void findAnimMatrix(const NodeAnimation& anim, double time, Matrix4& loca
             const Keyframe& beginFrame = anim.keyframes[beginFrameIndex];
             // interpolate between two frames
             float t = static_cast<float>((time - beginFrame.timeInSeconds) / (endFrame.timeInSeconds - beginFrame.timeInSeconds));
-            Vector3 position = three::lerp(beginFrame.position, endFrame.position, t);
-            Vector3 scale = three::lerp(beginFrame.scale, endFrame.scale, t);
-            Quaternion quat = three::slerp(beginFrame.rotation, endFrame.rotation, t);
+            vec3 p = mix(beginFrame.position, endFrame.position, t);
+            vec3 s = mix(beginFrame.scale, endFrame.scale, t);
+            quat r = mix(beginFrame.rotation, endFrame.rotation, t);
 
-            Matrix4 T = three::translate(position);
-            Matrix4 S = three::scale(scale);
-            Matrix4 R = three::rotate(quat);
+            mat4 T = translate(mat4(1), p);
+            mat4 S = scale(mat4(1), s);
+            mat4 R = toMat4(r);
             localTransform = T * R * S;
             return;
         }
@@ -115,7 +116,7 @@ void AnimationTest::update(double deltaTime) {
     // int rotate = (int)ImGui::IsKeyDown(GLFW_KEY_RIGHT) - (int)ImGui::IsKeyDown(GLFW_KEY_LEFT);
 
     // FIXME: dummy elapsed time
-    const Matrix4 R = rotateY(0.003f);
+    const mat4 R = rotate(mat4(1), 0.003f, vec3(0, 1, 0));
     m_vs.M = R * m_vs.M;
 
     // update animation
@@ -129,7 +130,7 @@ void AnimationTest::update(double deltaTime) {
     m_vs.boneMatrices.resize(bones.size());
     for (size_t i = 0; i < bones.size(); ++i) {
         const Bone& bone = bones[i];
-        const Matrix4 boneMatrix = bone.boneNode->worldTransform * bone.offsetMatrix;
+        const mat4 boneMatrix = bone.boneNode->worldTransform * bone.offsetMatrix;
         m_vs.boneMatrices[i] = boneMatrix;
     }
 

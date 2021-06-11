@@ -7,5 +7,8 @@ SpaceBeforeCpp11BracedList: true
 AllowAllArgumentsOnNextLine: true
 Cpp11BracedListStyle: false
 
+# constructor
+BreakConstructorInitializers: BeforeComma
+
 # macro
 AlignConsecutiveMacros: true

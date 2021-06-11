@@ -1,6 +1,6 @@
 #pragma once
-#include "Maths.h"
 #include "Texture.h"
+#include "common/linalg.h"
 
 namespace hguo {
 
@@ -13,21 +13,21 @@ enum VaryingFlag : unsigned int {
 };
 
 struct VSInput {
-    Vector4 position;
-    Vector4 normal;
-    Vector2 uv;
-    Vector3 color;
-    Vector4i boneId;
-    Vector4 weights;
+    gfx::vec4 position;
+    gfx::vec4 normal;
+    gfx::vec2 uv;
+    gfx::vec3 color;
+    gfx::ivec4 boneId;
+    gfx::vec4 weights;
 };
 
 struct VSOutput {
-    Vector4 position;
-    Vector4 worldPosition;
-    Vector4 normal;
-    Vector4 lightSpacePosition;
-    Vector2 uv;
-    Vector3 color;
+    gfx::vec4 position;
+    gfx::vec4 worldPosition;
+    gfx::vec4 normal;
+    gfx::vec4 lightSpacePosition;
+    gfx::vec2 uv;
+    gfx::vec3 color;
 };
 
 class IVertexShader {
@@ -46,7 +46,7 @@ class IVertexShader {
 
 class IFragmentShader {
    public:
-    virtual Color processFragment(const VSOutput& input) = 0;
+    virtual gfx::Color processFragment(const VSOutput& input) = 0;
 };
 
 }  // namespace hguo

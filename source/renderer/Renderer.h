@@ -2,6 +2,7 @@
 #include <vector>
 #include "RenderTarget.h"
 #include "ShaderProgram.h"
+#include "common/linalg.h"
 
 namespace hguo {
 
@@ -56,7 +57,7 @@ class Renderer {
     void pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSInput& vs_in2);
 
    private:
-    Color m_clearColor = Color { 0, 0, 0, 255 };
+    gfx::Color m_clearColor = gfx::Color { 0, 0, 0, 255 };
     float m_clearDepth = 1.0f;
     IVertexShader* m_pVertexShader = nullptr;
     IFragmentShader* m_pFragmentShader = nullptr;

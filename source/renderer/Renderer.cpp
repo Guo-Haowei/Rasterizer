@@ -1,10 +1,33 @@
 #include "Renderer.h"
 #include <algorithm>
 #include <iostream>
-#include "Maths.h"
 #include "common/core_assert.h"
 
 namespace hguo {
+
+using namespace gfx;
+
+/**
+ * P = uA + vB + wC (where w = 1 - u - v)
+ * P = uA + vB + C - uC - vC => (C - P) + u(A - C) + v(B - C) = 0
+ * uCA + vCB + PC = 0
+ * [u v 1] [CAx CBx PCx] = 0
+ * [u v 1] [CAy CBy PCy] = 0
+ * [u v 1] is the cross product
+ */
+static vec3 barycentric(const vec2& a, const vec2& b, const vec2& c, const vec2& p) {
+    const vec2 PC = c - p, CA = a - c, CB = b - c;
+    vec3 uvw = cross(vec3(CA.x, CB.x, PC.x), vec3(CA.y, CB.y, PC.y));
+    /**
+     * what if uvw.z is 0?
+     * CA.x * CB.y = CA.y * CB.x == 0 => CA.y / CA.x == CB.y / CB.x
+     * CA // CB => A, B and C are on the same line
+     */
+    ASSERT(uvw.z != 0.0f);
+    uvw /= uvw.z;
+    uvw.z -= (uvw.x + uvw.y);
+    return uvw;
+}
 
 Renderer::Renderer() {
 }
@@ -89,12 +112,12 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
     int width = m_pRenderTarget->m_depthBuffer.m_width;
     int height = m_pRenderTarget->m_depthBuffer.m_height;
 
-    const Vector2 a(vs_out0.position.x * width, vs_out0.position.y * height);
-    const Vector2 b(vs_out1.position.x * width, vs_out1.position.y * height);
-    const Vector2 c(vs_out2.position.x * width, vs_out2.position.y * height);
+    const vec2 a(vs_out0.position.x * width, vs_out0.position.y * height);
+    const vec2 b(vs_out1.position.x * width, vs_out1.position.y * height);
+    const vec2 c(vs_out2.position.x * width, vs_out2.position.y * height);
 
-    const three::Box2 screenBox(Vector2::Zero, Vector2(width - 1, height - 1));
-    three::Box2 triangleBox {};
+    const Box2 screenBox(vec2(0.0f), vec2(width - 1, height - 1));
+    Box2 triangleBox {};
     triangleBox.expandPoint(a);
     triangleBox.expandPoint(b);
     triangleBox.expandPoint(c);
@@ -106,15 +129,15 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
         return;
 
     // discard if A, B and C are on the same line
-    const Vector2 ab = b - a;
-    const Vector2 ac = c - a;
+    const vec2 ab = b - a;
+    const vec2 ac = c - a;
     if (ab.x * ac.y == ab.y * ac.x)
         return;
 
     // face culling
-    Vector3 ab3d(vs_out0.position.x - vs_out1.position.x, vs_out0.position.y - vs_out1.position.y, vs_out0.position.z - vs_out1.position.z);
-    Vector3 ac3d(vs_out0.position.x - vs_out2.position.x, vs_out0.position.y - vs_out2.position.y, vs_out0.position.z - vs_out2.position.z);
-    Vector3 normal = three::cross(ab3d, ac3d);
+    vec3 ab3d(vs_out0.position.x - vs_out1.position.x, vs_out0.position.y - vs_out1.position.y, vs_out0.position.z - vs_out1.position.z);
+    vec3 ac3d(vs_out0.position.x - vs_out2.position.x, vs_out0.position.y - vs_out2.position.y, vs_out0.position.z - vs_out2.position.z);
+    vec3 normal = cross(ab3d, ac3d);
     if (normal.z * m_cullFaceFactor < 0.0f)
         return;
 
@@ -124,9 +147,9 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
     // rasterization
     const unsigned int varyingFlags = m_pVertexShader->getVaryingFlags();
     // check range?
-    for (int y = triangleBox.min.y; y < triangleBox.max.y; ++y) {
-        for (int x = triangleBox.min.x; x < triangleBox.max.x; ++x) {
-            Vector3 bCoord = barycentric(a, b, c, Vector2(x, y));
+    for (int y = int(triangleBox.min.y); y < triangleBox.max.y; ++y) {
+        for (int x = int(triangleBox.min.x); x < triangleBox.max.x; ++x) {
+            vec3 bCoord = barycentric(a, b, c, vec2(x, y));
             float sum = bCoord.x + bCoord.y + bCoord.z;
             // TODO: refactor
             static const float epsilon = 0.00003f;

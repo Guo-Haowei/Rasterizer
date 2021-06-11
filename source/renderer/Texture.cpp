@@ -2,6 +2,7 @@
 
 namespace hguo {
 
+using namespace gfx;
 template <>
 const Color TextureBase<Color>::sDefaultValue { 0, 0, 0, 255 };
 template <>

@@ -2,7 +2,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "renderer/Maths.h"
+#include "common/linalg.h"
 
 namespace hguo {
 
@@ -13,8 +13,8 @@ struct Material {
 
 struct Node {
     std::string name;
-    Matrix4 transform;       // local transformation
-    Matrix4 worldTransform;  // world transformation
+    gfx::mat4 transform;       // local transformation
+    gfx::mat4 worldTransform;  // world transformation
 
     std::shared_ptr<Node> parent;
     std::vector<std::shared_ptr<Node>> children;
@@ -35,13 +35,13 @@ struct Bone {
     // animation
     std::string name;
     Node* boneNode;
-    Matrix4 offsetMatrix;
+    gfx::mat4 offsetMatrix;
 };
 
 struct Keyframe {
-    Vector3 position;
-    Vector3 scale;
-    Quaternion rotation;
+    gfx::vec3 position;
+    gfx::vec3 scale;
+    gfx::quat rotation;
     double timeInSeconds;
 };
 
@@ -57,11 +57,11 @@ struct Animation {
 
 struct Mesh {
     std::string name;
-    std::vector<Vector3> positions;
-    std::vector<Vector3> normals;
-    std::vector<Vector2> uvs;
-    std::vector<Vector4> weights;
-    std::vector<Vector4i> boneIds;
+    std::vector<gfx::vec3> positions;
+    std::vector<gfx::vec3> normals;
+    std::vector<gfx::vec2> uvs;
+    std::vector<gfx::vec4> weights;
+    std::vector<gfx::ivec4> boneIds;
     std::vector<unsigned int> indices;
 
     std::vector<Bone> bones;
