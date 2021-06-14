@@ -67,7 +67,7 @@ class TextureTest : public ExampleBase {
 };
 
 TextureTest::TextureTest()
-    : ExampleBase({ 900, 540, "Texture" }) {}
+    : ExampleBase(g_config) {}
 
 void TextureTest::initialize() {
     m_renderer.setSize(m_width, m_height);
@@ -109,3 +109,4 @@ void TextureTest::update(double deltaTime) {
 void TextureTest::finalize() {}
 
 ExampleBase *g_pExample = new TextureTest();
+Config g_config = { 900, 540, "Texture" };

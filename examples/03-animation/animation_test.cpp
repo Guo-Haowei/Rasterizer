@@ -8,8 +8,8 @@
 #define ASSET_DIR
 #endif
 
-#define MODEL_PATH(NAME)    ASSET_DIR "glTF/" NAME "/" NAME ".gltf"
-#define MODEL_TEXTURE(NAME) ASSET_DIR "glTF/" NAME "/" NAME "_img0.jpg"
+#define MODEL_PATH(NAME)    ASSET_DIR NAME "/" NAME ".gltf"
+#define MODEL_TEXTURE(NAME) ASSET_DIR NAME "/" NAME "_img0.jpg"
 
 using namespace rs;
 using namespace gfx;
@@ -95,7 +95,7 @@ class AnimationTest : public ExampleBase {
 };
 
 AnimationTest::AnimationTest()
-    : ExampleBase({ 900, 540, "Animation" }) {}
+    : ExampleBase(g_config) {}
 
 void AnimationTest::updatePV() {
     constexpr float fovy = 0.785398f;  // 45.0 degree
@@ -171,7 +171,7 @@ void AnimationTest::update(double deltaTime) {
     ASSERT(time <= anim.durationInseconds);
     ASSERT(time >= 0.0f);
 
-    if (int r = getKey(KeyCode::KEY_RIGHT) - getKey(KeyCode::KEY_LEFT)) {
+    if (int r = app::getKey(KeyCode::KEY_RIGHT) - app::getKey(KeyCode::KEY_LEFT)) {
         constexpr float rotateFactor = 1.5f;
         float angle = float(deltaTime);
         angle = r > 0 ? angle : -angle;
@@ -179,7 +179,7 @@ void AnimationTest::update(double deltaTime) {
         m_vs.M = R * m_vs.M;
     }
 
-    if (int zoom = getKey(KeyCode::KEY_DOWN) - getKey(KeyCode::KEY_UP)) {
+    if (int zoom = app::getKey(KeyCode::KEY_DOWN) - app::getKey(KeyCode::KEY_UP)) {
         constexpr float distance = 1.f;
         m_eye.z += zoom * distance * float(deltaTime);
         updatePV();
@@ -209,3 +209,4 @@ void AnimationTest::update(double deltaTime) {
 void AnimationTest::finalize() {}
 
 ExampleBase *g_pExample = new AnimationTest();
+Config g_config = { 900, 540, "Animation" };

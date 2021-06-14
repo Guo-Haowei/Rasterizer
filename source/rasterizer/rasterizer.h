@@ -52,8 +52,6 @@ class Renderer {
     inline void setRenderTarget(RenderTarget* renderTarget) { m_pRenderTarget = renderTarget; }
 
    private:
-    VSOutput ndcToViewport(const VSInput& vs_in);
-
     void pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSInput& vs_in2);
 
    private:

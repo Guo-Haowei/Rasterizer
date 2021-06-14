@@ -34,4 +34,5 @@ class ExampleBase {
     std::string m_title;
 };
 
+extern Config g_config;
 extern ExampleBase* g_pExample;

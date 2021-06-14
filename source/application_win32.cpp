@@ -8,6 +8,8 @@
 #endif
 #include <Windows.h>
 
+namespace app {
+
 static WNDCLASSEX g_wc;
 static HWND g_hWnd;
 static HDC g_hDC;
@@ -18,7 +20,6 @@ static bool g_shouldQuit;
 static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 void initialize() {
-    g_pExample->initialize();
     g_wc.cbSize = sizeof(WNDCLASSEX);
     g_wc.style = CS_CLASSDC;
     g_wc.lpfnWndProc = WndProc;
@@ -137,3 +138,5 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
     return ::DefWindowProc(hWnd, msg, wParam, lParam);
 }
+
+}  // namespace app

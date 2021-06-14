@@ -42,11 +42,7 @@ Scene AssimpLoader::load(const char* path) {
     std::cout << "[Log] Loading scene [" << full_path << "]" << std::endl;
     ::Assimp::Importer importer;
     const aiScene* aiscene = importer.ReadFile(full_path,
-                                               aiProcess_Triangulate |
-                                                   aiProcess_FlipUVs |
-                                                   aiProcess_GenSmoothNormals |
-                                                   aiProcess_JoinIdenticalVertices |
-                                                   aiProcess_PopulateArmatureData);
+                                               aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_PopulateArmatureData);
 
     Scene ret;
 
@@ -161,6 +157,11 @@ std::shared_ptr<Node> AssimpLoader::processNode(aiNode* ainode, std::shared_ptr<
         node->parent = parent;
 
     node->name = ainode->mName.C_Str();
+    if (ainode->mNumMeshes) {
+        node->meshIdx = ainode->mMeshes[0];
+    } else {
+        node->meshIdx = -1;
+    }
 
     m_nodeLookupTable.insert({ node->name, node.get() });
 

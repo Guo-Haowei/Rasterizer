@@ -15,6 +15,7 @@ struct Node {
     std::string name;
     gfx::mat4 transform;       // local transformation
     gfx::mat4 worldTransform;  // world transformation
+    int meshIdx;
 
     std::shared_ptr<Node> parent;
     std::vector<std::shared_ptr<Node>> children;

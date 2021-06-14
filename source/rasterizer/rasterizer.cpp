@@ -23,7 +23,7 @@ static vec3 barycentric(const vec2& a, const vec2& b, const vec2& c, const vec2&
      * CA.x * CB.y = CA.y * CB.x == 0 => CA.y / CA.x == CB.y / CB.x
      * CA // CB => A, B and C are on the same line
      */
-    ASSERT(uvw.z != 0.0f);
+    //ASSERT(uvw.z != 0.0f);
     uvw /= uvw.z;
     uvw.z -= (uvw.x + uvw.y);
     return uvw;
@@ -89,25 +89,60 @@ void Renderer::drawElements(size_t start, size_t count) {
  * Perspective correct linear interpolation
  * https://stackoverflow.com/questions/24441631/how-exactly-does-opengl-do-perspectively-correct-linear-interpolation
  */
-VSOutput Renderer::ndcToViewport(const VSInput& vs_in) {
-    VSOutput vs_out = m_pVertexShader->processVertex(vs_in);
-    float invW = 1.0f / vs_out.position.w;
-    vs_out.position.x *= invW;
-    vs_out.position.y *= invW;
-    vs_out.position.z *= invW;
-    vs_out.position.w = invW;
+inline void ndcToViewport(vec4& position) {
+    float invW = 1.0f / position.w;
+    position.x *= invW;
+    position.y *= invW;
+    position.z *= invW;
+    position.w = invW;
 
-    vs_out.position.x = 0.5f + 0.5f * vs_out.position.x;
-    vs_out.position.y = 0.5f + 0.5f * vs_out.position.y;
-    // revert z
-    return vs_out;
+    position.x = 0.5f + 0.5f * position.x;
+    position.y = 0.5f + 0.5f * position.y;
 }
 
 void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSInput& vs_in2) {
     // process vertex
-    VSOutput vs_out0 = ndcToViewport(vs_in0);
-    VSOutput vs_out1 = ndcToViewport(vs_in1);
-    VSOutput vs_out2 = ndcToViewport(vs_in2);
+    VSOutput vs_out0 = m_pVertexShader->processVertex(vs_in0);
+    VSOutput vs_out1 = m_pVertexShader->processVertex(vs_in1);
+    VSOutput vs_out2 = m_pVertexShader->processVertex(vs_in2);
+
+    // hack discard if all 3 points are outside the viewport
+    {
+        constexpr float t = -1.0f;
+        if (vs_out0.position.z / vs_out0.position.w < t ||
+            vs_out1.position.z / vs_out1.position.w < t ||
+            vs_out2.position.z / vs_out2.position.w < t) {
+            return;
+        }
+    }
+    {
+        constexpr float t = 1.0f;
+        if (vs_out0.position.z / vs_out0.position.w > t ||
+            vs_out1.position.z / vs_out1.position.w > t ||
+            vs_out2.position.z / vs_out2.position.w > t) {
+            return;
+        }
+    }
+    {
+        constexpr float t = -1.0f;
+        if (vs_out0.position.x / vs_out0.position.w < t ||
+            vs_out1.position.x / vs_out1.position.w < t ||
+            vs_out2.position.x / vs_out2.position.w < t) {
+            return;
+        }
+    }
+    {
+        constexpr float t = 1.0f;
+        if (vs_out0.position.x / vs_out0.position.w > t ||
+            vs_out1.position.x / vs_out1.position.w > t ||
+            vs_out2.position.x / vs_out2.position.w > t) {
+            return;
+        }
+    }
+
+    ndcToViewport(vs_out0.position);
+    ndcToViewport(vs_out1.position);
+    ndcToViewport(vs_out2.position);
 
     int width = m_pRenderTarget->m_depthBuffer.m_width;
     int height = m_pRenderTarget->m_depthBuffer.m_height;
@@ -125,21 +160,24 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
 
     bool intersect = triangleBox.isValid();
     // discard if not intersect
-    if (!intersect)
+    if (!intersect) {
         return;
+    }
 
     // discard if A, B and C are on the same line
     const vec2 ab = b - a;
     const vec2 ac = c - a;
-    if (ab.x * ac.y == ab.y * ac.x)
+    if (ab.x * ac.y == ab.y * ac.x) {
         return;
+    }
 
     // face culling
     vec3 ab3d(vs_out0.position.x - vs_out1.position.x, vs_out0.position.y - vs_out1.position.y, vs_out0.position.z - vs_out1.position.z);
     vec3 ac3d(vs_out0.position.x - vs_out2.position.x, vs_out0.position.y - vs_out2.position.y, vs_out0.position.z - vs_out2.position.z);
     vec3 normal = cross(ab3d, ac3d);
-    if (normal.z * m_cullFaceFactor < 0.0f)
+    if (normal.z * m_cullFaceFactor < 0.0f) {
         return;
+    }
 
     ColorBuffer& colorBuffer = m_pRenderTarget->m_colorBuffer;
     DepthBuffer& depthBuffer = m_pRenderTarget->m_depthBuffer;
@@ -150,6 +188,10 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
     for (int y = int(triangleBox.min.y); y < triangleBox.max.y; ++y) {
         for (int x = int(triangleBox.min.x); x < triangleBox.max.x; ++x) {
             vec3 bCoord = barycentric(a, b, c, vec2(x, y));
+            if (bCoord.z != bCoord.z) {
+                continue;
+            }
+
             float sum = bCoord.x + bCoord.y + bCoord.z;
             // TODO: refactor
             static const float epsilon = 0.00003f;
@@ -163,20 +205,22 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
 
                 float depth = output.position.z;
 
-                if (depthBuffer.m_buffer[index] < depth)
+                if (depth >= 1.0f || depth <= .0f) {
                     continue;
+                }
+                if (depthBuffer.m_buffer[index] < depth) {
+                    continue;
+                }
 
                 depthBuffer.m_buffer[index] = depth;
-                {
-                    // corrected barycentric coordinates
-                    float x = bCoord.x * vs_out0.position.w;
-                    float y = bCoord.y * vs_out1.position.w;
-                    float z = bCoord.z * vs_out2.position.w;
-                    float xyzSum = x + y + z;
-                    bCoord.x = x / xyzSum;
-                    bCoord.y = y / xyzSum;
-                    bCoord.z = z / xyzSum;
-                }
+                // corrected barycentric coordinates
+                float x = bCoord.x * vs_out0.position.w;
+                float y = bCoord.y * vs_out1.position.w;
+                float z = bCoord.z * vs_out2.position.w;
+                float xyzSum = x + y + z;
+                bCoord.x = x / xyzSum;
+                bCoord.y = y / xyzSum;
+                bCoord.z = z / xyzSum;
 
                 if (varyingFlags & VARYING_NORMAL) {
                     output.normal = bCoord.x * vs_out0.normal + bCoord.y * vs_out1.normal + bCoord.z * vs_out2.normal;

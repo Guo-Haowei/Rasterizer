@@ -49,7 +49,7 @@ class TriangleApp : public ExampleBase {
 };
 
 TriangleApp::TriangleApp()
-    : ExampleBase({ 900, 540, "Triangle" }) {
+    : ExampleBase(g_config) {
 }
 
 void TriangleApp::initialize() {
@@ -77,3 +77,4 @@ void TriangleApp::finalize() {
 }
 
 ExampleBase* g_pExample = new TriangleApp();
+Config g_config = { 900, 540, "Triangle" };
