@@ -1,5 +1,4 @@
 #include "example_base.h"
-#include "rasterizer/ShaderProgram.h"
 
 using namespace gfx;
 using namespace rs;
@@ -14,20 +13,21 @@ class TriangleVS : public IVertexShader {
     virtual VSOutput processVertex(const VSInput& input) override {
         VSOutput vs_output;
         vs_output.position = input.position;
-        vs_output.color = input.color;
+        vs_output.worldPosition = input.position;
         return vs_output;
     }
 
    private:
-    static const unsigned int sVaryingFlags = VARYING_COLOR;
+    static const unsigned int sVaryingFlags = VARYING_WORLD_POSITION;
 };
 
 class TriangleFS : public IFragmentShader {
     virtual Color processFragment(const VSOutput& input) override {
         Color color;
-        color.r = static_cast<unsigned char>(255.f * input.color.r);
-        color.g = static_cast<unsigned char>(255.f * input.color.g);
-        color.b = static_cast<unsigned char>(255.f * input.color.b);
+        vec4 position = .5f * input.worldPosition + .5f;
+        color.r = static_cast<unsigned char>(255.f * position.r);
+        color.g = static_cast<unsigned char>(255.f * position.g);
+        color.b = static_cast<unsigned char>(255.f * position.b);
         color.a = 255;
         return color;
     }
@@ -37,11 +37,8 @@ class TriangleApp : public ExampleBase {
    public:
     TriangleApp();
 
-    virtual void initialize() override;
-
+    virtual void postInit() override;
     virtual void update(double deltaTime) override;
-
-    virtual void finalize() override;
 
    private:
     TriangleVS m_vs;
@@ -52,28 +49,21 @@ TriangleApp::TriangleApp()
     : ExampleBase(g_config) {
 }
 
-void TriangleApp::initialize() {
-    m_renderer.setSize(m_width, m_height);
-    m_renderer.setVertexShader(&m_vs);
-    m_renderer.setFragmentShader(&m_fs);
+void TriangleApp::postInit() {
+    rs::setVertexShader(&m_vs);
+    rs::setFragmentShader(&m_fs);
 
     g_vertices[0].position = { +0.0f, +0.5f, 0.0f, 1.0f };
     g_vertices[1].position = { -0.5f, -0.5f, 0.0f, 1.0f };
     g_vertices[2].position = { +0.5f, -0.5f, 0.0f, 1.0f };
-    g_vertices[0].color = { 1.0f, 0.0f, 0.0f };
-    g_vertices[1].color = { 0.0f, 1.0f, 0.0f };
-    g_vertices[2].color = { 0.0f, 0.0f, 1.0f };
-    m_renderer.setVertexArray(g_vertices);
 
-    m_renderer.setCullState(Renderer::BACK_FACE);
+    rs::setVertexArray(g_vertices);
+    rs::setCullState(BACK_FACE);
 }
 
 void TriangleApp::update(double deltaTime) {
-    m_renderer.clear(Renderer::COLOR_BUFFER_BIT);
-    m_renderer.drawArrays(0, 3);
-}
-
-void TriangleApp::finalize() {
+    rs::clear(COLOR_BUFFER_BIT);
+    rs::drawArrays(0, 3);
 }
 
 ExampleBase* g_pExample = new TriangleApp();

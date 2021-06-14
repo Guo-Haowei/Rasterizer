@@ -61,11 +61,8 @@ class SponzaTest : public ExampleBase {
    public:
     SponzaTest();
 
-    virtual void initialize() override;
-
+    virtual void postInit() override;
     virtual void update(double deltaTime) override;
-
-    virtual void finalize() override;
 
    private:
     void updatePV();
@@ -98,10 +95,10 @@ void SponzaTest::updatePV() {
     m_vs.PV = m_PV;
 }
 
-void SponzaTest::initialize() {
-    m_renderer.setSize(m_width, m_height);
-    m_renderer.setVertexShader(&m_vs);
-    m_renderer.setFragmentShader(&m_fs);
+void SponzaTest::postInit() {
+    rs::setSize(m_width, m_height);
+    rs::setVertexShader(&m_vs);
+    rs::setFragmentShader(&m_fs);
 
     updatePV();
 
@@ -121,7 +118,7 @@ void SponzaTest::initialize() {
         m_meshes.emplace_back(data);
     }
 
-    m_renderer.setCullState(Renderer::BACK_FACE);
+    rs::setCullState(BACK_FACE);
     m_scene.root->calWorldTransform();
 }
 
@@ -143,29 +140,15 @@ void SponzaTest::update(double deltaTime) {
         updatePV();
     }
 
-    m_renderer.clear(Renderer::COLOR_DEPTH_BUFFER_BIT);
-
-    static int t = 0;
-    static bool wasDown = false;
-    if (app::getKey(KeyCode::KEY_N) && !wasDown) {
-        ++t;
-        t = t % int(m_meshes.size());
-        printf("mesh %d\n", t);
-    }
-    wasDown = app::getKey(KeyCode::KEY_N);
+    rs::clear(COLOR_DEPTH_BUFFER_BIT);
 
     for (size_t i = 0; i < m_meshes.size(); ++i) {
-        if (1) {
-            // if (i == t) {
-            const MeshData &mesh = m_meshes[i];
-            m_renderer.setVertexArray(mesh.vertices.data());
-            m_renderer.setIndexArray(mesh.indices.data());
-            m_renderer.drawElements(0, mesh.indices.size());
-        }
+        const MeshData &mesh = m_meshes[i];
+        rs::setVertexArray(mesh.vertices.data());
+        rs::setIndexArray(mesh.indices.data());
+        rs::drawElements(0, mesh.indices.size());
     }
 }
-
-void SponzaTest::finalize() {}
 
 ExampleBase *g_pExample = new SponzaTest();
 Config g_config = { 900, 540, "Sponza" };

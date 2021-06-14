@@ -9,25 +9,22 @@ enum VaryingFlag : unsigned int {
     VARYING_NORMAL = 1u << 1,
     VARYING_UV = 1u << 2,
     VARYING_WORLD_POSITION = 1u << 3,
-    VARYING_LIGHT_SPACE_POSITION = 1u << 4,
 };
 
-struct VSInput {
+struct alignas(16) VSInput {
     gfx::vec4 position;
     gfx::vec4 normal;
-    gfx::vec2 uv;
-    gfx::vec3 color;
     gfx::ivec4 boneId;
     gfx::vec4 weights;
+    gfx::vec2 uv;
 };
 
-struct VSOutput {
+struct alignas(16) VSOutput {
     gfx::vec4 position;
     gfx::vec4 worldPosition;
     gfx::vec4 normal;
-    gfx::vec4 lightSpacePosition;
+    gfx::vec4 color;
     gfx::vec2 uv;
-    gfx::vec3 color;
 };
 
 class IVertexShader {

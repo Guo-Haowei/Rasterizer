@@ -35,17 +35,17 @@ void initialize() {
 
     ::RegisterClassEx(&g_wc);
 
-    g_hWnd = ::CreateWindow(g_wc.lpszClassName,              // lpClassName
-                            g_pExample->getTitle().c_str(),  // lpWindowName
-                            WS_OVERLAPPED | WS_SYSMENU,      // dwStyle
-                            CW_USEDEFAULT,                   // x
-                            CW_USEDEFAULT,                   // y
-                            g_pExample->getWidth(),          // nWidth
-                            g_pExample->getHeight(),         // nHeight
-                            NULL,                            // hWndParent
-                            NULL,                            // hMenu
-                            g_wc.hInstance,                  // hInstance
-                            NULL                             // lpParam
+    g_hWnd = ::CreateWindow(g_wc.lpszClassName,          // lpClassName
+                            g_config.title,              // lpWindowName
+                            WS_OVERLAPPED | WS_SYSMENU,  // dwStyle
+                            CW_USEDEFAULT,               // x
+                            CW_USEDEFAULT,               // y
+                            g_config.width,              // nWidth
+                            g_config.height,             // nHeight
+                            NULL,                        // hWndParent
+                            NULL,                        // hMenu
+                            g_wc.hInstance,              // hInstance
+                            NULL                         // lpParam
     );
 
     if (!g_hWnd) {

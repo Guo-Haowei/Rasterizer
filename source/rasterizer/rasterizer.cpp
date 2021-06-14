@@ -1,89 +1,73 @@
 #include "rasterizer.h"
 #include <algorithm>
 #include <iostream>
+#include <queue>
+#include <vector>
 #include "common/core_assert.h"
 
 namespace rs {
 
 using namespace gfx;
+using namespace std;
 
-/**
- * P = uA + vB + wC (where w = 1 - u - v)
- * P = uA + vB + C - uC - vC => (C - P) + u(A - C) + v(B - C) = 0
- * uCA + vCB + PC = 0
- * [u v 1] [CAx CBx PCx] = 0
- * [u v 1] [CAy CBy PCy] = 0
- * [u v 1] is the cross product
- */
-static vec3 barycentric(const vec2& a, const vec2& b, const vec2& c, const vec2& p) {
-    const vec2 PC = c - p, CA = a - c, CB = b - c;
-    vec3 uvw = cross(vec3(CA.x, CB.x, PC.x), vec3(CA.y, CB.y, PC.y));
-    /**
-     * what if uvw.z is 0?
-     * CA.x * CB.y = CA.y * CB.x == 0 => CA.y / CA.x == CB.y / CB.x
-     * CA // CB => A, B and C are on the same line
-     */
-    //ASSERT(uvw.z != 0.0f);
-    uvw /= uvw.z;
-    uvw.z -= (uvw.x + uvw.y);
-    return uvw;
-}
+struct RenderState {
+    gfx::Color clearColor = gfx::Color { 0, 0, 0, 255 };
+    float clearDepth = 1.0f;
+    IVertexShader* vs = nullptr;
+    IFragmentShader* fs = nullptr;
+    RenderTarget* rt = nullptr;
 
-Renderer::Renderer() {
-}
+    const VSInput* vertices = nullptr;
+    const uint32_t* indices = nullptr;
+    float cullFace = 0.0f;
+};
 
-void Renderer::setSize(int width, int height) {
+static RenderState g_state;
+
+void initialize() {}
+
+void finalize() {}
+
+void setSize(int width, int height) {
     ASSERT(width > 0 && height > 0);
-    m_pRenderTarget->resize(width, height);
-    m_pRenderTarget->m_colorBuffer.clear(m_clearColor);
-    m_pRenderTarget->m_depthBuffer.clear(m_clearDepth);
+    g_state.rt->resize(width, height);
+    g_state.rt->m_colorBuffer.clear(g_state.clearColor);
+    g_state.rt->m_depthBuffer.clear(g_state.clearDepth);
 }
 
-void Renderer::setClearColor(unsigned r, unsigned g, unsigned b, unsigned a) {
-    m_clearColor.r = r;
-    m_clearColor.g = g;
-    m_clearColor.b = b;
-    m_clearColor.a = a;
+void setClearColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    g_state.clearColor.r = r;
+    g_state.clearColor.g = g;
+    g_state.clearColor.b = b;
+    g_state.clearColor.a = a;
 }
 
-void Renderer::setClearDepth(float depth) {
-    m_clearDepth = depth;
+void setClearDepth(float depth) {
+    g_state.clearDepth = depth;
 }
 
-void Renderer::clear(ClearFlags flags) {
-    if (flags & ClearFlags::COLOR_BUFFER_BIT)
-        m_pRenderTarget->m_colorBuffer.clear(m_clearColor);
-    if (flags & ClearFlags::DEPTH_BUFFER_BIT)
-        m_pRenderTarget->m_depthBuffer.clear(m_clearDepth);
-}
-
-void Renderer::setCullState(CullState cullState) {
-    m_cullFaceFactor = static_cast<float>(cullState);
-}
-
-void Renderer::drawArrays(size_t start, size_t count) {
-    ASSERT(count % 3 == 0);
-    ASSERT(start % 3 == 0);
-
-    for (size_t i = start; i < start + count;) {
-        const VSInput& vs1 = m_pVertices[i++];
-        const VSInput& vs2 = m_pVertices[i++];
-        const VSInput& vs3 = m_pVertices[i++];
-        pipeline(vs1, vs2, vs3);
+void clear(ClearFlags flags) {
+    if (flags & ClearFlags::COLOR_BUFFER_BIT) {
+        g_state.rt->m_colorBuffer.clear(g_state.clearColor);
+    }
+    if (flags & ClearFlags::DEPTH_BUFFER_BIT) {
+        g_state.rt->m_depthBuffer.clear(g_state.clearDepth);
     }
 }
 
-void Renderer::drawElements(size_t start, size_t count) {
-    ASSERT(count % 3 == 0);
-    ASSERT(start % 3 == 0);
-
-    for (size_t i = start; i < start + count;) {
-        const VSInput& vs1 = m_pVertices[m_pIndices[i++]];
-        const VSInput& vs2 = m_pVertices[m_pIndices[i++]];
-        const VSInput& vs3 = m_pVertices[m_pIndices[i++]];
-        pipeline(vs1, vs2, vs3);
-    }
+void setCullState(CullState cullState) {
+    g_state.cullFace = static_cast<float>(cullState);
 }
+
+void setVertexArray(const VSInput* vertices) { g_state.vertices = vertices; }
+void setIndexArray(const unsigned int* indices) { g_state.indices = indices; }
+void setVertexShader(IVertexShader* vs) { g_state.vs = vs; }
+void setFragmentShader(IFragmentShader* fs) { g_state.fs = fs; }
+void setRenderTarget(RenderTarget* renderTarget) { g_state.rt = renderTarget; }
+
+struct OutTriangle {
+    VSOutput p0, p1, p2;
+};
 
 /**
  * Perspective correct linear interpolation
@@ -100,13 +84,15 @@ inline void ndcToViewport(vec4& position) {
     position.y = 0.5f + 0.5f * position.y;
 }
 
-void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSInput& vs_in2) {
-    // process vertex
-    VSOutput vs_out0 = m_pVertexShader->processVertex(vs_in0);
-    VSOutput vs_out1 = m_pVertexShader->processVertex(vs_in1);
-    VSOutput vs_out2 = m_pVertexShader->processVertex(vs_in2);
+static inline void processTriangle(const VSInput& vs_in0, const VSInput& vs_in1, const VSInput& vs_in2, vector<OutTriangle>& outTriangles) {
+    IVertexShader* vs = g_state.vs;
+    VSOutput vs_out0 = vs->processVertex(vs_in0);
+    VSOutput vs_out1 = vs->processVertex(vs_in1);
+    VSOutput vs_out2 = vs->processVertex(vs_in2);
 
-    // hack discard if all 3 points are outside the viewport
+    // clipping
+    // hack: discard if all 3 points are outside the viewport
+    // todo: clip triangle properly
     {
         constexpr float t = -1.0f;
         if (vs_out0.position.z / vs_out0.position.w < t ||
@@ -144,8 +130,27 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
     ndcToViewport(vs_out1.position);
     ndcToViewport(vs_out2.position);
 
-    int width = m_pRenderTarget->m_depthBuffer.m_width;
-    int height = m_pRenderTarget->m_depthBuffer.m_height;
+    // face culling
+    vec3 ab3d(vs_out0.position.x - vs_out1.position.x, vs_out0.position.y - vs_out1.position.y, vs_out0.position.z - vs_out1.position.z);
+    vec3 ac3d(vs_out0.position.x - vs_out2.position.x, vs_out0.position.y - vs_out2.position.y, vs_out0.position.z - vs_out2.position.z);
+    vec3 normal = cross(ab3d, ac3d);
+    if (normal.z * g_state.cullFace < 0.0f) {
+        return;
+    }
+
+    outTriangles.emplace_back(OutTriangle { vs_out0, vs_out1, vs_out2 });
+}
+
+static void inline processFragment(OutTriangle& vs_out) {
+    RenderTarget* rt = g_state.rt;
+    const int width = rt->m_depthBuffer.m_width;
+    const int height = rt->m_depthBuffer.m_height;
+
+    IVertexShader* vs = g_state.vs;
+    IFragmentShader* fs = g_state.fs;
+    VSOutput& vs_out0 = vs_out.p0;
+    VSOutput& vs_out1 = vs_out.p1;
+    VSOutput& vs_out2 = vs_out.p2;
 
     const vec2 a(vs_out0.position.x * width, vs_out0.position.y * height);
     const vec2 b(vs_out1.position.x * width, vs_out1.position.y * height);
@@ -171,26 +176,23 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
         return;
     }
 
-    // face culling
-    vec3 ab3d(vs_out0.position.x - vs_out1.position.x, vs_out0.position.y - vs_out1.position.y, vs_out0.position.z - vs_out1.position.z);
-    vec3 ac3d(vs_out0.position.x - vs_out2.position.x, vs_out0.position.y - vs_out2.position.y, vs_out0.position.z - vs_out2.position.z);
-    vec3 normal = cross(ab3d, ac3d);
-    if (normal.z * m_cullFaceFactor < 0.0f) {
-        return;
-    }
-
-    ColorBuffer& colorBuffer = m_pRenderTarget->m_colorBuffer;
-    DepthBuffer& depthBuffer = m_pRenderTarget->m_depthBuffer;
+    ColorBuffer& colorBuffer = rt->m_colorBuffer;
+    DepthBuffer& depthBuffer = rt->m_depthBuffer;
 
     // rasterization
-    const unsigned int varyingFlags = m_pVertexShader->getVaryingFlags();
-    // check range?
+    const uint32_t varyingFlags = vs->getVaryingFlags();
     for (int y = int(triangleBox.min.y); y < triangleBox.max.y; ++y) {
         for (int x = int(triangleBox.min.x); x < triangleBox.max.x; ++x) {
-            vec3 bCoord = barycentric(a, b, c, vec2(x, y));
-            if (bCoord.z != bCoord.z) {
+            // barycentric
+            const vec2 p(x, y);
+            const vec2 PC = c - p, CA = a - c, CB = b - c;
+            vec3 uvw = cross(vec3(CA.x, CB.x, PC.x), vec3(CA.y, CB.y, PC.y));
+            if (uvw.z == 0.0f) {
                 continue;
             }
+            uvw /= uvw.z;
+            uvw.z -= (uvw.x + uvw.y);
+            vec3 bCoord = uvw;
 
             float sum = bCoord.x + bCoord.y + bCoord.z;
             // TODO: refactor
@@ -229,19 +231,54 @@ void Renderer::pipeline(const VSInput& vs_in0, const VSInput& vs_in1, const VSIn
                     output.color = bCoord.x * vs_out0.color + bCoord.y * vs_out1.color + bCoord.z * vs_out2.color;
                 }
                 if (varyingFlags & VARYING_UV) {
+                    // NOTE: slow here! probably due to unaligned simd operation
                     output.uv = bCoord.x * vs_out0.uv + bCoord.y * vs_out1.uv + bCoord.z * vs_out2.uv;
                 }
                 if (varyingFlags & VARYING_WORLD_POSITION) {
                     output.worldPosition = bCoord.x * vs_out0.worldPosition + bCoord.y * vs_out1.worldPosition + bCoord.z * vs_out2.worldPosition;
                 }
-                if (varyingFlags & VARYING_LIGHT_SPACE_POSITION) {
-                    output.lightSpacePosition = bCoord.x * vs_out0.lightSpacePosition + bCoord.y * vs_out1.lightSpacePosition + bCoord.z * vs_out2.lightSpacePosition;
-                }
 
                 // fragment shader
-                colorBuffer.m_buffer[index] = m_pFragmentShader->processFragment(output);
+                colorBuffer.m_buffer[index] = fs->processFragment(output);
             }
         }
+    }
+}
+
+void drawArrays(size_t start, size_t count) {
+    ASSERT(count % 3 == 0);
+    ASSERT(start % 3 == 0);
+
+    const VSInput* vertices = g_state.vertices;
+    vector<OutTriangle> outTriangles(count / 3);
+    for (size_t i = start; i < start + count;) {
+        const VSInput& p0 = vertices[i++];
+        const VSInput& p1 = vertices[i++];
+        const VSInput& p2 = vertices[i++];
+        processTriangle(p0, p1, p2, outTriangles);
+    }
+
+    for (OutTriangle& triangle : outTriangles) {
+        processFragment(triangle);
+    }
+}
+
+void drawElements(size_t start, size_t count) {
+    ASSERT(count % 3 == 0);
+    ASSERT(start % 3 == 0);
+
+    const VSInput* vertices = g_state.vertices;
+    const uint32_t* indices = g_state.indices;
+    vector<OutTriangle> outTriangles(count / 3);
+    for (size_t i = start; i < start + count;) {
+        const VSInput& p0 = vertices[indices[i++]];
+        const VSInput& p1 = vertices[indices[i++]];
+        const VSInput& p2 = vertices[indices[i++]];
+        processTriangle(p0, p1, p2, outTriangles);
+    }
+
+    for (OutTriangle& triangle : outTriangles) {
+        processFragment(triangle);
     }
 }
 

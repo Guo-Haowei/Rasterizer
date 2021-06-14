@@ -70,11 +70,8 @@ class AnimationTest : public ExampleBase {
    public:
     AnimationTest();
 
-    virtual void initialize() override;
-
+    virtual void postInit() override;
     virtual void update(double deltaTime) override;
-
-    virtual void finalize() override;
 
    private:
     void updatePV();
@@ -105,10 +102,10 @@ void AnimationTest::updatePV() {
     m_vs.PV = m_PV;
 }
 
-void AnimationTest::initialize() {
-    m_renderer.setSize(m_width, m_height);
-    m_renderer.setVertexShader(&m_vs);
-    m_renderer.setFragmentShader(&m_fs);
+void AnimationTest::postInit() {
+    rs::setSize(m_width, m_height);
+    rs::setVertexShader(&m_vs);
+    rs::setFragmentShader(&m_fs);
 
     updatePV();
 
@@ -130,9 +127,9 @@ void AnimationTest::initialize() {
     loadTexture(m_texture, MODEL_TEXTURE("CesiumMan"));
     m_fs.m_texture = &m_texture;
 
-    m_renderer.setVertexArray(m_vertices.data());
-    m_renderer.setIndexArray(m_indices.data());
-    m_renderer.setCullState(Renderer::BACK_FACE);
+    rs::setVertexArray(m_vertices.data());
+    rs::setIndexArray(m_indices.data());
+    rs::setCullState(BACK_FACE);
 }
 
 static void findAnimMatrix(const NodeAnimation &anim, double time,
@@ -200,13 +197,11 @@ void AnimationTest::update(double deltaTime) {
         m_vs.boneMatrices[i] = boneMatrix;
     }
 
-    m_renderer.clear(Renderer::COLOR_DEPTH_BUFFER_BIT);
-    m_renderer.drawElements(0, m_indices.size());
+    rs::clear(COLOR_DEPTH_BUFFER_BIT);
+    rs::drawElements(0, m_indices.size());
 
     m_elapsedTime += deltaTime;
 }
-
-void AnimationTest::finalize() {}
 
 ExampleBase *g_pExample = new AnimationTest();
 Config g_config = { 900, 540, "Animation" };

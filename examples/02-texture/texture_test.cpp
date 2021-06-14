@@ -49,11 +49,8 @@ class TextureTest : public ExampleBase {
    public:
     TextureTest();
 
-    virtual void initialize() override;
-
+    virtual void postInit() override;
     virtual void update(double deltaTime) override;
-
-    virtual void finalize() override;
 
    private:
     TextureVs m_vs;
@@ -69,10 +66,10 @@ class TextureTest : public ExampleBase {
 TextureTest::TextureTest()
     : ExampleBase(g_config) {}
 
-void TextureTest::initialize() {
-    m_renderer.setSize(m_width, m_height);
-    m_renderer.setVertexShader(&m_vs);
-    m_renderer.setFragmentShader(&m_fs);
+void TextureTest::postInit() {
+    rs::setSize(m_width, m_height);
+    rs::setVertexShader(&m_vs);
+    rs::setFragmentShader(&m_fs);
 
     // mesh
     g_vertices[0].position = { -0.5f, +0.5f, 0.0f, 1.0f };  // top left
@@ -80,8 +77,8 @@ void TextureTest::initialize() {
     g_vertices[2].position = { +0.5f, -0.5f, 0.0f, 1.0f };  // bottom right
     g_vertices[3].position = { +0.5f, +0.5f, 0.0f, 1.0f };  // top right
 
-    m_renderer.setVertexArray(g_vertices);
-    m_renderer.setIndexArray(g_indices);
+    rs::setVertexArray(g_vertices);
+    rs::setIndexArray(g_indices);
 
     // constant buffer
     const float fovy = 0.785398f;  // 45.0 degree
@@ -97,16 +94,14 @@ void TextureTest::initialize() {
 void TextureTest::update(double deltaTime) {
     static const mat4 M0 = translate(mat4(1), vec3(0.0f, 0.0f, 0.5f));
     static const mat4 M1 = translate(mat4(1), vec3(0.0f, 0.0f, -0.5f));
-    m_renderer.clear(Renderer::COLOR_DEPTH_BUFFER_BIT);
+    rs::clear(COLOR_DEPTH_BUFFER_BIT);
     m_vs.PVM = PV * M0;
-    m_renderer.drawElements(0, 6);
+    rs::drawElements(0, 6);
     m_vs.PVM = PV * mat4(1);
-    m_renderer.drawElements(0, 6);
+    rs::drawElements(0, 6);
     m_vs.PVM = PV * M1;
-    m_renderer.drawElements(0, 6);
+    rs::drawElements(0, 6);
 }
-
-void TextureTest::finalize() {}
 
 ExampleBase *g_pExample = new TextureTest();
 Config g_config = { 900, 540, "Texture" };
