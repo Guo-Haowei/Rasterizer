@@ -46,10 +46,11 @@ class AnimatedModelVS : public IVertexShader {
 class TexturePhongFS : public IFragmentShader {
    public:
     virtual gfx::Color processFragment(const VSOutput &input) override {
+        constexpr gfx::vec3 lightPosition { 0, 3, 3 };
         const gfx::vec3 normal = gfx::normalize(gfx::vec3(input.normal));
         const gfx::vec3 worldPosition(input.worldPosition);
         const gfx::vec3 lightDirection =
-            gfx::normalize(m_lightPosition - worldPosition);
+            gfx::normalize(lightPosition - worldPosition);
         float dot = gfx::dot(lightDirection, normal);
         float diffusePower = gfx::max(dot, 0.0f);
         gfx::Color textureColor = m_texture->sample(input.uv);
@@ -62,7 +63,6 @@ class TexturePhongFS : public IFragmentShader {
     }
 
    public:
-    gfx::vec3 m_lightPosition { 0, 3, 3 };
     const Texture *m_texture = nullptr;
 };
 

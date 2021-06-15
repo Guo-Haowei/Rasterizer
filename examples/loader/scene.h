@@ -66,6 +66,7 @@ struct Mesh {
     std::vector<unsigned int> indices;
 
     std::vector<Bone> bones;
+    int matId = -1;
 };
 
 struct Scene {

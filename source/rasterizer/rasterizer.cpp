@@ -74,6 +74,7 @@ struct OutTriangle {
  * https://stackoverflow.com/questions/24441631/how-exactly-does-opengl-do-perspectively-correct-linear-interpolation
  */
 inline void ndcToViewport(vec4& position) {
+    ASSERT(position.w != 0.0f);
     float invW = 1.0f / position.w;
     position.x *= invW;
     position.y *= invW;
@@ -90,40 +91,12 @@ static inline void processTriangle(const VSInput& vs_in0, const VSInput& vs_in1,
     VSOutput vs_out1 = vs->processVertex(vs_in1);
     VSOutput vs_out2 = vs->processVertex(vs_in2);
 
-    // clipping
-    // hack: discard if all 3 points are outside the viewport
-    // todo: clip triangle properly
-    {
-        constexpr float t = -1.0f;
-        if (vs_out0.position.z / vs_out0.position.w < t ||
-            vs_out1.position.z / vs_out1.position.w < t ||
-            vs_out2.position.z / vs_out2.position.w < t) {
-            return;
-        }
-    }
-    {
-        constexpr float t = 1.0f;
-        if (vs_out0.position.z / vs_out0.position.w > t ||
-            vs_out1.position.z / vs_out1.position.w > t ||
-            vs_out2.position.z / vs_out2.position.w > t) {
-            return;
-        }
-    }
-    {
-        constexpr float t = -1.0f;
-        if (vs_out0.position.x / vs_out0.position.w < t ||
-            vs_out1.position.x / vs_out1.position.w < t ||
-            vs_out2.position.x / vs_out2.position.w < t) {
-            return;
-        }
-    }
-    {
-        constexpr float t = 1.0f;
-        if (vs_out0.position.x / vs_out0.position.w > t ||
-            vs_out1.position.x / vs_out1.position.w > t ||
-            vs_out2.position.x / vs_out2.position.w > t) {
-            return;
-        }
+    // TODO: front plane clipping
+    constexpr float t = 1.0f;
+    if (vs_out0.position.z / vs_out0.position.w > t ||
+        vs_out1.position.z / vs_out1.position.w > t ||
+        vs_out2.position.z / vs_out2.position.w > t) {
+        return;
     }
 
     ndcToViewport(vs_out0.position);
@@ -170,9 +143,10 @@ static void inline processFragment(OutTriangle& vs_out) {
     }
 
     // discard if A, B and C are on the same line
-    const vec2 ab = b - a;
-    const vec2 ac = c - a;
-    if (ab.x * ac.y == ab.y * ac.x) {
+    const vec2 BA = a - b;
+    const vec2 CA = a - c;
+    const vec2 CB = b - c;
+    if (BA.x * CA.y == BA.y * CA.x) {
         return;
     }
 
@@ -183,9 +157,17 @@ static void inline processFragment(OutTriangle& vs_out) {
     const uint32_t varyingFlags = vs->getVaryingFlags();
     for (int y = int(triangleBox.min.y); y < triangleBox.max.y; ++y) {
         for (int x = int(triangleBox.min.x); x < triangleBox.max.x; ++x) {
-            // barycentric
+            /**
+             * barycentric
+             * P = uA + vB + wC (where w = 1 - u - v)
+             * P = uA + vB + C - uC - vC => (C - P) + u(A - C) + v(B - C) = 0
+             * uCA + vCB + PC = 0
+             * [u v 1] [CAx CBx PCx] = 0
+             * [u v 1] [CAy CBy PCy] = 0
+             * [u v 1] is the cross product
+             **/
             const vec2 p(x, y);
-            const vec2 PC = c - p, CA = a - c, CB = b - c;
+            const vec2 PC = c - p;
             vec3 uvw = cross(vec3(CA.x, CB.x, PC.x), vec3(CA.y, CB.y, PC.y));
             if (uvw.z == 0.0f) {
                 continue;
@@ -194,9 +176,8 @@ static void inline processFragment(OutTriangle& vs_out) {
             uvw.z -= (uvw.x + uvw.y);
             vec3 bCoord = uvw;
 
-            float sum = bCoord.x + bCoord.y + bCoord.z;
-            // TODO: refactor
-            static const float epsilon = 0.00003f;
+            static const float epsilon = glm::epsilon<float>();
+            const float sum = bCoord.x + bCoord.y + bCoord.z;
             bool test = (bCoord.x >= 0.0f && bCoord.y >= 0.0f && bCoord.z >= 0.0f && std::abs(sum - 1.0f) <= epsilon);
             if (test == true) {
                 // depth test
@@ -207,9 +188,6 @@ static void inline processFragment(OutTriangle& vs_out) {
 
                 float depth = output.position.z;
 
-                if (depth >= 1.0f || depth <= .0f) {
-                    continue;
-                }
                 if (depthBuffer.m_buffer[index] < depth) {
                     continue;
                 }

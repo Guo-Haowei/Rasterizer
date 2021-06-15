@@ -5,7 +5,6 @@
 #include <stb_image.h>
 #include <algorithm>
 #include <assimp/Importer.hpp>
-#include <iostream>
 #include "common/core_assert.h"
 
 namespace rs {
@@ -33,43 +32,41 @@ void loadTexture(Texture& texture, const char* path) {
         texture.create({ width, height, buffer.data() });
         stbi_image_free(data);
     } else {
-        std::cout << "Failed to load texture " << path << std::endl;
+        printf("Failed to load texture '%s'\n", path);
     }
 }
 
 Scene AssimpLoader::load(const char* path) {
     std::string full_path(path);
-    std::cout << "[Log] Loading scene [" << full_path << "]" << std::endl;
+    printf("[Log] Loading scene '%s'\n", full_path.c_str());
     ::Assimp::Importer importer;
     const aiScene* aiscene = importer.ReadFile(full_path,
-                                               aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_PopulateArmatureData);
+                                               aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_PopulateArmatureData);
 
     Scene ret;
 
     // check for errors
     if (!aiscene || aiscene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !aiscene->mRootNode)  // if is Not Zero
     {
-        std::cout << "[ERROR] assimp failed to load.";
-        std::cout << importer.GetErrorString() << std::endl;
+        printf("[ERROR] assimp failed to load:\n%s\n", importer.GetErrorString());
         return ret;
     }
 
-    // m_scene->materials.reserve(scene->mNumMaterials);
-    // for (uint32_t i = 0; i < scene->mNumMaterials; ++i)
-    // {
-    //     aiMaterial* material = scene->mMaterials[i];
-    //     processMaterial(scene->mMaterials[i], dir);
-    // }
+    ret.materials.reserve(aiscene->mNumMaterials);
+    for (uint32_t i = 0; i < aiscene->mNumMaterials; ++i) {
+        aiMaterial* material = aiscene->mMaterials[i];
+        ret.materials.emplace_back(processMaterial(aiscene->mMaterials[i], ""));
+    }
 
     std::shared_ptr<Node> rootNode = processNode(aiscene->mRootNode, nullptr);
 
     ret.meshes.reserve(aiscene->mNumMeshes);
     for (uint32_t i = 0; i < aiscene->mNumMeshes; ++i) {
-        processMesh(ret, aiscene->mMeshes[i]);
+        ret.meshes.emplace_back(processMesh(aiscene->mMeshes[i]));
     }
 
     if (aiscene->mNumAnimations != 0) {
-        processAnimation(ret, aiscene->mAnimations[0]);
+        ret.anim = processAnimation(aiscene->mAnimations[0]);
     }
 
     ret.root = std::move(rootNode);
@@ -77,22 +74,20 @@ Scene AssimpLoader::load(const char* path) {
     return ret;
 }
 
-void AssimpLoader::processMesh(Scene& scene, const aiMesh* aimesh) {
-    scene.meshes.push_back({});
-    Mesh& mesh = scene.meshes.back();
-
+Mesh AssimpLoader::processMesh(const aiMesh* aimesh) {
+    Mesh mesh;
     mesh.name = aimesh->mName.C_Str();
     mesh.positions.reserve(aimesh->mNumVertices);
     for (uint32_t i = 0; i < aimesh->mNumVertices; ++i) {
         auto& position = aimesh->mVertices[i];
-        mesh.positions.push_back(vec3(position.x, position.y, position.z));
+        mesh.positions.emplace_back(vec3(position.x, position.y, position.z));
         auto& normal = aimesh->mNormals[i];
-        mesh.normals.push_back(vec3(normal.x, normal.y, normal.z));
+        mesh.normals.emplace_back(vec3(normal.x, normal.y, normal.z));
         if (aimesh->mTextureCoords[0]) {
             auto& uv = aimesh->mTextureCoords[0][i];
-            mesh.uvs.push_back(vec2(uv.x, uv.y));
+            mesh.uvs.emplace_back(vec2(uv.x, uv.y));
         } else {
-            mesh.uvs.push_back(vec2(0.0f));
+            mesh.uvs.emplace_back(vec2(0.0f));
         }
     }
 
@@ -148,7 +143,10 @@ void AssimpLoader::processMesh(Scene& scene, const aiMesh* aimesh) {
         mesh.indices.push_back(face.mIndices[1]);
         mesh.indices.push_back(face.mIndices[2]);
     }
-    // mesh.materialIndex = aimesh->mMaterialIndex;
+
+    mesh.matId = aimesh->mMaterialIndex;
+
+    return mesh;
 }
 
 std::shared_ptr<Node> AssimpLoader::processNode(aiNode* ainode, std::shared_ptr<Node> parent) {
@@ -181,10 +179,10 @@ std::shared_ptr<Node> AssimpLoader::processNode(aiNode* ainode, std::shared_ptr<
     return node;
 }
 
-void AssimpLoader::processAnimation(Scene& scene, const aiAnimation* aianim) {
+Animation AssimpLoader::processAnimation(const aiAnimation* aianim) {
+    Animation anim;
     double ticksPersecond = aianim->mTicksPerSecond;
     double duration = aianim->mDuration;
-    Animation& anim = scene.anim;
     anim.durationInseconds = duration / ticksPersecond;
     anim.nodeAnims.reserve(aianim->mNumChannels);
     for (uint32_t channelIndex = 0; channelIndex < aianim->mNumChannels; ++channelIndex) {
@@ -216,29 +214,21 @@ void AssimpLoader::processAnimation(Scene& scene, const aiAnimation* aianim) {
         }
         anim.nodeAnims.push_back(nodeAnim);
     }
+
+    return anim;
 }
 
-#if 0
-
-void AssimpLoader::processMaterial(aiMaterial* material, const std::string& dir)
-{
-    SceneMaterial* mat = new SceneMaterial();
-    mat->name = material->GetName().C_Str();
-    std::cout << "Loading " << mat->name << std::endl;
+Material AssimpLoader::processMaterial(aiMaterial* material, const std::string& dir) {
+    Material mat;
+    mat.name = material->GetName().C_Str();
+    printf("Loading '%s'\n", mat.name.c_str());
     aiString path;
-    if (material->GetTexture(aiTextureType_AMBIENT, 0, &path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS)
-    {
-        std::cout << "Albedo map found: " << path.C_Str() << std::endl;
-        mat->albedoPath = path.C_Str();
-    }
-    if (material->GetTexture(aiTextureType_DISPLACEMENT, 0, &path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS)
-    {
-        std::cout << "Normal map found: " << path.C_Str() << std::endl;
-        mat->normalPath = path.C_Str();
+    if (material->GetTexture(aiTextureType_AMBIENT, 0, &path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS) {
+        printf("Albedo map found: %s\n", path.C_Str());
+        mat.diffuse = path.C_Str();
     }
 
-    m_scene->materials.push_back(std::unique_ptr<SceneMaterial>(mat));
+    return mat;
 }
-#endif
 
 }  // namespace rs
