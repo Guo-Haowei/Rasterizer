@@ -1,6 +1,6 @@
 #pragma once
-#include "Texture.h"
 #include "common/linalg.h"
+#include "sampler.h"
 
 namespace rs {
 

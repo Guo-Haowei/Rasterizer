@@ -1,7 +1,9 @@
 #include "rasterizer.h"
 #include <algorithm>
+#include <execution>
 #include <iostream>
-#include <queue>
+#include <list>
+#include <thread>
 #include <vector>
 #include "common/core_assert.h"
 
@@ -9,6 +11,17 @@ namespace rs {
 
 using namespace gfx;
 using namespace std;
+
+// config
+static constexpr int tileSize = 200;
+
+// barycentric
+// P = uA + vB + wC (where w = 1 - u - v)
+// P = uA + vB + C - uC - vC => (C - P) + u(A - C) + v(B - C) = 0
+// uCA + vCB + PC = 0
+// [u v 1] [CAx CBx PCx] = 0
+// [u v 1] [CAy CBy PCy] = 0
+// [u v 1] is the cross product
 
 struct RenderState {
     gfx::Color clearColor = gfx::Color { 0, 0, 0, 255 };
@@ -24,9 +37,11 @@ struct RenderState {
 
 static RenderState g_state;
 
-void initialize() {}
+void initialize() {
+}
 
-void finalize() {}
+void finalize() {
+}
 
 void setSize(int width, int height) {
     ASSERT(width > 0 && height > 0);
@@ -67,6 +82,7 @@ void setRenderTarget(RenderTarget* renderTarget) { g_state.rt = renderTarget; }
 
 struct OutTriangle {
     VSOutput p0, p1, p2;
+    int discarded = false;
 };
 
 /**
@@ -85,7 +101,7 @@ inline void ndcToViewport(vec4& position) {
     position.y = 0.5f + 0.5f * position.y;
 }
 
-static inline void processTriangle(const VSInput& vs_in0, const VSInput& vs_in1, const VSInput& vs_in2, vector<OutTriangle>& outTriangles) {
+static inline OutTriangle processTriangle(const VSInput& vs_in0, const VSInput& vs_in1, const VSInput& vs_in2) {
     IVertexShader* vs = g_state.vs;
     VSOutput vs_out0 = vs->processVertex(vs_in0);
     VSOutput vs_out1 = vs->processVertex(vs_in1);
@@ -96,7 +112,9 @@ static inline void processTriangle(const VSInput& vs_in0, const VSInput& vs_in1,
     if (vs_out0.position.z / vs_out0.position.w > t ||
         vs_out1.position.z / vs_out1.position.w > t ||
         vs_out2.position.z / vs_out2.position.w > t) {
-        return;
+        OutTriangle triangle;
+        triangle.discarded = true;
+        return triangle;
     }
 
     ndcToViewport(vs_out0.position);
@@ -108,39 +126,37 @@ static inline void processTriangle(const VSInput& vs_in0, const VSInput& vs_in1,
     vec3 ac3d(vs_out0.position.x - vs_out2.position.x, vs_out0.position.y - vs_out2.position.y, vs_out0.position.z - vs_out2.position.z);
     vec3 normal = cross(ab3d, ac3d);
     if (normal.z * g_state.cullFace < 0.0f) {
-        return;
+        OutTriangle triangle;
+        triangle.discarded = true;
+        return triangle;
     }
 
-    outTriangles.emplace_back(OutTriangle { vs_out0, vs_out1, vs_out2 });
+    return OutTriangle { vs_out0, vs_out1, vs_out2 };
 }
 
-static void inline processFragment(OutTriangle& vs_out) {
+static inline int tileNum(int tileSize, int length) {
+    int rem = (length % tileSize) != 0;
+    return (length / tileSize) + rem;
+}
+
+static void inline processFragment(OutTriangle& vs_out, int tx, int ty) {
+    // prepare to go multi-threading
     RenderTarget* rt = g_state.rt;
     const int width = rt->m_depthBuffer.m_width;
     const int height = rt->m_depthBuffer.m_height;
 
+    // note
+    const int col = tileNum(tileSize, width);
+    const int row = tileNum(tileSize, height);
+
+    const VSOutput& vs_out0 = vs_out.p0;
+    const VSOutput& vs_out1 = vs_out.p1;
+    const VSOutput& vs_out2 = vs_out.p2;
     IVertexShader* vs = g_state.vs;
     IFragmentShader* fs = g_state.fs;
-    VSOutput& vs_out0 = vs_out.p0;
-    VSOutput& vs_out1 = vs_out.p1;
-    VSOutput& vs_out2 = vs_out.p2;
-
     const vec2 a(vs_out0.position.x * width, vs_out0.position.y * height);
     const vec2 b(vs_out1.position.x * width, vs_out1.position.y * height);
     const vec2 c(vs_out2.position.x * width, vs_out2.position.y * height);
-
-    const Box2 screenBox(vec2(0.0f), vec2(width - 1, height - 1));
-    Box2 triangleBox {};
-    triangleBox.expandPoint(a);
-    triangleBox.expandPoint(b);
-    triangleBox.expandPoint(c);
-    triangleBox.unionBox(screenBox);
-
-    bool intersect = triangleBox.isValid();
-    // discard if not intersect
-    if (!intersect) {
-        return;
-    }
 
     // discard if A, B and C are on the same line
     const vec2 BA = a - b;
@@ -152,20 +168,27 @@ static void inline processFragment(OutTriangle& vs_out) {
 
     ColorBuffer& colorBuffer = rt->m_colorBuffer;
     DepthBuffer& depthBuffer = rt->m_depthBuffer;
+    const uint32_t varyingFlags = vs->getVaryingFlags();
+
+    const vec2 _min(tx * tileSize, ty * tileSize);
+    const vec2 _max(
+        glm::min(width - 1, (tx + 1) * tileSize),
+        glm::min(height - 1, (ty + 1) * tileSize));
+    const Box2 screenBox(_min, _max);
+    Box2 triangleBox {};
+    triangleBox.expandPoint(a);
+    triangleBox.expandPoint(b);
+    triangleBox.expandPoint(c);
+    triangleBox.unionBox(screenBox);
+    bool intersect = triangleBox.isValid();
+    // discard if not intersect
+    if (!intersect) {
+        return;
+    }
 
     // rasterization
-    const uint32_t varyingFlags = vs->getVaryingFlags();
     for (int y = int(triangleBox.min.y); y < triangleBox.max.y; ++y) {
         for (int x = int(triangleBox.min.x); x < triangleBox.max.x; ++x) {
-            /**
-             * barycentric
-             * P = uA + vB + wC (where w = 1 - u - v)
-             * P = uA + vB + C - uC - vC => (C - P) + u(A - C) + v(B - C) = 0
-             * uCA + vCB + PC = 0
-             * [u v 1] [CAx CBx PCx] = 0
-             * [u v 1] [CAy CBy PCy] = 0
-             * [u v 1] is the cross product
-             **/
             const vec2 p(x, y);
             const vec2 PC = c - p;
             vec3 uvw = cross(vec3(CA.x, CB.x, PC.x), vec3(CA.y, CB.y, PC.y));
@@ -223,41 +246,106 @@ static void inline processFragment(OutTriangle& vs_out) {
     }
 }
 
+struct VertexJob {
+    int id;
+    vector<OutTriangle>* triangles;
+};
+
+struct FragmentJob {
+    int tx, ty;
+    vector<OutTriangle>* triangles;
+};
+
+static void drawArrayInternal(vector<OutTriangle>& trigs) {
+    // remove invalid triangles
+    trigs.erase(remove_if(trigs.begin(),
+                          trigs.end(),
+                          [](OutTriangle& trig) { return trig.discarded; }),
+                trigs.end());
+
+    RenderTarget* rt = g_state.rt;
+    const int width = rt->m_depthBuffer.m_width;
+    const int height = rt->m_depthBuffer.m_height;
+
+    const int col = tileNum(tileSize, width);
+    const int row = tileNum(tileSize, height);
+
+    vector<FragmentJob> fragJobs;
+    fragJobs.reserve(row * col);
+    for (int ty = 0; ty < row; ++ty) {
+        for (int tx = 0; tx < col; ++tx) {
+            fragJobs.emplace_back(FragmentJob { tx, ty, &trigs });
+        }
+    }
+
+    for_each(
+        execution::par_unseq,
+        fragJobs.begin(),
+        fragJobs.end(),
+        [](FragmentJob& job) {
+            for (OutTriangle& triangle : *job.triangles) {
+                processFragment(triangle, job.tx, job.ty);
+            }
+        });
+}
+
 void drawArrays(size_t start, size_t count) {
     ASSERT(count % 3 == 0);
     ASSERT(start % 3 == 0);
 
-    const VSInput* vertices = g_state.vertices;
-    vector<OutTriangle> outTriangles(count / 3);
-    for (size_t i = start; i < start + count;) {
-        const VSInput& p0 = vertices[i++];
-        const VSInput& p1 = vertices[i++];
-        const VSInput& p2 = vertices[i++];
-        processTriangle(p0, p1, p2, outTriangles);
+    const int triangleCnt = int(count) / 3;
+    vector<VertexJob> vertJobs;
+    vertJobs.reserve(triangleCnt);
+    vector<OutTriangle> outTriangles(triangleCnt);
+
+    for (int i = 0; i < triangleCnt; ++i) {
+        vertJobs.emplace_back(VertexJob { i, &outTriangles });
     }
 
-    for (OutTriangle& triangle : outTriangles) {
-        processFragment(triangle);
-    }
+    for_each(
+        execution::par_unseq,
+        vertJobs.begin(),
+        vertJobs.end(),
+        [](VertexJob& job) {
+            const int idx = job.id;
+            const VSInput* vertices = g_state.vertices;
+            const VSInput& p0 = vertices[idx * 3 + 0];
+            const VSInput& p1 = vertices[idx * 3 + 1];
+            const VSInput& p2 = vertices[idx * 3 + 2];
+            (job.triangles)->operator[](idx) = processTriangle(p0, p1, p2);
+        });
+
+    drawArrayInternal(outTriangles);
 }
 
 void drawElements(size_t start, size_t count) {
     ASSERT(count % 3 == 0);
     ASSERT(start % 3 == 0);
 
-    const VSInput* vertices = g_state.vertices;
-    const uint32_t* indices = g_state.indices;
-    vector<OutTriangle> outTriangles(count / 3);
-    for (size_t i = start; i < start + count;) {
-        const VSInput& p0 = vertices[indices[i++]];
-        const VSInput& p1 = vertices[indices[i++]];
-        const VSInput& p2 = vertices[indices[i++]];
-        processTriangle(p0, p1, p2, outTriangles);
+    const int triangleCnt = int(count) / 3;
+    vector<VertexJob> vertJobs;
+    vertJobs.reserve(triangleCnt);
+    vector<OutTriangle> outTriangles(triangleCnt);
+
+    for (int i = 0; i < triangleCnt; ++i) {
+        vertJobs.emplace_back(VertexJob { i, &outTriangles });
     }
 
-    for (OutTriangle& triangle : outTriangles) {
-        processFragment(triangle);
-    }
+    for_each(
+        execution::par_unseq,
+        vertJobs.begin(),
+        vertJobs.end(),
+        [](VertexJob& job) {
+            const int idx = job.id;
+            const VSInput* vertices = g_state.vertices;
+            const uint32_t* indices = g_state.indices;
+            const VSInput& p0 = vertices[indices[idx * 3 + 0]];
+            const VSInput& p1 = vertices[indices[idx * 3 + 1]];
+            const VSInput& p2 = vertices[indices[idx * 3 + 2]];
+            (job.triangles)->operator[](idx) = processTriangle(p0, p1, p2);
+        });
+
+    drawArrayInternal(outTriangles);
 }
 
 }  // namespace rs

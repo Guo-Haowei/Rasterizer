@@ -1,5 +1,5 @@
 #pragma once
-#include "Texture.h"
+#include "sampler.h"
 
 namespace rs {
 

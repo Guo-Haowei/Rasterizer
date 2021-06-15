@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <unordered_map>
-#include "rasterizer/Texture.h"
+#include "rasterizer/sampler.h"
 #include "scene.h"
 
 struct aiMesh;

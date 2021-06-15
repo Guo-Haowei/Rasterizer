@@ -221,10 +221,10 @@ Animation AssimpLoader::processAnimation(const aiAnimation* aianim) {
 Material AssimpLoader::processMaterial(aiMaterial* material, const std::string& dir) {
     Material mat;
     mat.name = material->GetName().C_Str();
-    printf("Loading '%s'\n", mat.name.c_str());
+    // printf("Loading '%s'\n", mat.name.c_str());
     aiString path;
     if (material->GetTexture(aiTextureType_AMBIENT, 0, &path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS) {
-        printf("Albedo map found: %s\n", path.C_Str());
+        // printf("Albedo map found: %s\n", path.C_Str());
         mat.diffuse = path.C_Str();
     }
 

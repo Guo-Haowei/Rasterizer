@@ -46,7 +46,7 @@ class AnimatedModelVS : public IVertexShader {
 class TexturePhongFS : public IFragmentShader {
    public:
     virtual gfx::Color processFragment(const VSOutput &input) override {
-        constexpr gfx::vec3 lightPosition { 0, 3, 3 };
+        const gfx::vec3 lightPosition { 0, 3, 3 };
         const gfx::vec3 normal = gfx::normalize(gfx::vec3(input.normal));
         const gfx::vec3 worldPosition(input.worldPosition);
         const gfx::vec3 lightDirection =

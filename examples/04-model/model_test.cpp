@@ -42,7 +42,7 @@ class AnimatedModelVS : public IVertexShader {
 class TexturePhongFS : public IFragmentShader {
    public:
     virtual gfx::Color processFragment(const VSOutput &input) override {
-        constexpr gfx::vec3 lightPosition { 0, 5, 0 };
+        const gfx::vec3 lightPosition { 0, 5, 0 };
         gfx::vec3 normal = gfx::normalize(gfx::vec3(input.normal));
         normal = normal * .5f + .5f;
         gfx::Color finalColor;
@@ -60,7 +60,7 @@ class TexturePhongFS : public IFragmentShader {
 struct MeshData {
     std::vector<VSInput> vertices;
     std::vector<unsigned int> indices;
-    const Texture *texture;
+    // const Texture *texture;
 };
 
 class ModelTest : public ExampleBase {
@@ -124,18 +124,18 @@ void ModelTest::postInit() {
             data.vertices.push_back(input);
         }
 
-        const Material &mat = m_scene.materials.at(mesh.matId);
-        auto it = m_textures.find(mat.name);
-        if (it == m_textures.end()) {
-            Texture texture;
+        // const Material &mat = m_scene.materials.at(mesh.matId);
+        // auto it = m_textures.find(mat.name);
+        // if (it == m_textures.end()) {
+        //     Texture texture;
 
-            char buf[256];
-            snprintf(buf, sizeof(buf) - 1, "%s/%s", TEXTURE_DIR(MODEL_NAME), mat.diffuse.c_str());
-            loadTexture(texture, buf);
-            m_textures[mat.name] = texture;
-        }
+        //     char buf[256];
+        //     snprintf(buf, sizeof(buf) - 1, "%s/%s", TEXTURE_DIR(MODEL_NAME), mat.diffuse.c_str());
+        //     loadTexture(texture, buf);
+        //     m_textures[mat.name] = texture;
+        // }
 
-        data.texture = &m_textures.at(mat.name);
+        // data.texture = &m_textures.at(mat.name);
         m_meshes.emplace_back(data);
     }
 
@@ -144,7 +144,7 @@ void ModelTest::postInit() {
 }
 
 void ModelTest::update(double deltaTime) {
-    constexpr float distance = 100.f;
+    constexpr float distance = 200.f;
     if (int dx = app::getKey(KeyCode::KEY_A) - app::getKey(KeyCode::KEY_D)) {
         const float rad = glm::radians(m_angle + 90.0f);
         gfx::vec3 front = gfx::vec3(glm::sin(rad), 0.0f, glm::cos(rad));
@@ -169,7 +169,7 @@ void ModelTest::update(double deltaTime) {
         const MeshData &mesh = m_meshes[i];
         rs::setVertexArray(mesh.vertices.data());
         rs::setIndexArray(mesh.indices.data());
-        m_fs.m_texture = mesh.texture;
+        // m_fs.m_texture = mesh.texture;
         rs::drawElements(0, mesh.indices.size());
     }
 }

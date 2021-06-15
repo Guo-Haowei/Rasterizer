@@ -1,4 +1,4 @@
-#include "Texture.h"
+#include "Sampler.h"
 
 namespace rs {
 
