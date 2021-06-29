@@ -9,5 +9,5 @@ target_link_libraries(02-texture PRIVATE
 )
 
 target_compile_definitions(02-texture PRIVATE
-    -DASSET_DIR="${PROJECT_SOURCE_DIR}/assets/"
+    -DASSET_DIR="${PROJECT_SOURCE_DIR}/../assets/"
 )

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 # three.math
 message("Configuring glm...")
 include_directories(source/)
-include_directories(external/glm/)
+include_directories(third_party/glm/)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 

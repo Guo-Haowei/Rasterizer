@@ -9,5 +9,5 @@ target_link_libraries(04-model PRIVATE
 )
 
 target_compile_definitions(04-model PRIVATE
-    -DASSET_DIR="${PROJECT_SOURCE_DIR}/assets/"
+    -DASSET_DIR="${PROJECT_SOURCE_DIR}/../assets/"
 )

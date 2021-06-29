@@ -1,9 +1,9 @@
 [submodule "external/assimp"]
-	path = external/assimp
+	path = cpp/third_party/assimp
 	url = https://github.com/assimp/assimp.git
 [submodule "external/stb"]
-	path = external/stb
+	path = cpp/third_party/stb
 	url = https://github.com/nothings/stb.git
 [submodule "external/glm"]
-	path = external/glm
+	path = cpp/third_party/glm
 	url = https://github.com/g-truc/glm.git

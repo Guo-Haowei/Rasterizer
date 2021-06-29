@@ -9,5 +9,5 @@ target_link_libraries(03-animation PRIVATE
 )
 
 target_compile_definitions(03-animation PRIVATE
-    -DASSET_DIR="${PROJECT_SOURCE_DIR}/assets/"
+    -DASSET_DIR="${PROJECT_SOURCE_DIR}/../assets/"
 )
