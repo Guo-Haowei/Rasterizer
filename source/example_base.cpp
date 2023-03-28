@@ -1,6 +1,7 @@
 #include "example_base.h"
-#include <chrono>
+#include "rasterizer/JobSystem.h"
 #include "application.h"
+#include <chrono>
 
 using namespace std::chrono;
 
@@ -9,6 +10,7 @@ ExampleBase::ExampleBase(const Config& config)
 }
 
 int ExampleBase::run() {
+    jobsystem::initialize();
     rs::initialize();
 
     m_renderTarget.create({ m_width, m_height, true, true });
@@ -47,5 +49,7 @@ int ExampleBase::run() {
 
     app::finalize();
     rs::finalize();
+    jobsystem::finalize();
+
     return 0;
 }

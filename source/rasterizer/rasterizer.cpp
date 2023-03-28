@@ -5,6 +5,7 @@
 #include <list>
 #include <thread>
 #include <vector>
+#include "JobSystem.h"
 #include "common/core_assert.h"
 
 namespace rs {
@@ -246,16 +247,6 @@ static void inline processFragment(OutTriangle& vs_out, int tx, int ty) {
     }
 }
 
-struct VertexJob {
-    int id;
-    vector<OutTriangle>* triangles;
-};
-
-struct FragmentJob {
-    int tx, ty;
-    vector<OutTriangle>* triangles;
-};
-
 static void drawArrayInternal(vector<OutTriangle>& trigs) {
     // remove invalid triangles
     trigs.erase(remove_if(trigs.begin(),
@@ -270,23 +261,16 @@ static void drawArrayInternal(vector<OutTriangle>& trigs) {
     const int col = tileNum(tileSize, width);
     const int row = tileNum(tileSize, height);
 
-    vector<FragmentJob> fragJobs;
-    fragJobs.reserve(row * col);
-    for (int ty = 0; ty < row; ++ty) {
-        for (int tx = 0; tx < col; ++tx) {
-            fragJobs.emplace_back(FragmentJob { tx, ty, &trigs });
-        }
-    }
-
-    for_each(
-        execution::par_unseq,
-        fragJobs.begin(),
-        fragJobs.end(),
-        [](FragmentJob& job) {
-            for (OutTriangle& triangle : *job.triangles) {
-                processFragment(triangle, job.tx, job.ty);
+    jobsystem::Context ctx;
+    ctx.Dispatch(row, 1, [&](jobsystem::JobArgs args) {
+        for (int c = 0; c < col; ++c) {
+            for (OutTriangle& triangle : trigs) {
+                processFragment(triangle, c, args.jobIndex);
             }
-        });
+        }
+    });
+
+    ctx.Wait();
 }
 
 void drawArrays(size_t start, size_t count) {
@@ -294,26 +278,18 @@ void drawArrays(size_t start, size_t count) {
     ASSERT(start % 3 == 0);
 
     const int triangleCnt = int(count) / 3;
-    vector<VertexJob> vertJobs;
-    vertJobs.reserve(triangleCnt);
     vector<OutTriangle> outTriangles(triangleCnt);
 
-    for (int i = 0; i < triangleCnt; ++i) {
-        vertJobs.emplace_back(VertexJob { i, &outTriangles });
-    }
-
-    for_each(
-        execution::par_unseq,
-        vertJobs.begin(),
-        vertJobs.end(),
-        [](VertexJob& job) {
-            const int idx = job.id;
-            const VSInput* vertices = g_state.vertices;
-            const VSInput& p0 = vertices[idx * 3 + 0];
-            const VSInput& p1 = vertices[idx * 3 + 1];
-            const VSInput& p2 = vertices[idx * 3 + 2];
-            (job.triangles)->operator[](idx) = processTriangle(p0, p1, p2);
-        });
+    jobsystem::Context ctx;
+    ctx.Dispatch(triangleCnt, 8, [&](jobsystem::JobArgs args) {
+        const uint32_t idx = args.jobIndex;
+        const VSInput* vertices = g_state.vertices;
+        const VSInput& p0 = vertices[idx * 3 + 0];
+        const VSInput& p1 = vertices[idx * 3 + 1];
+        const VSInput& p2 = vertices[idx * 3 + 2];
+        outTriangles[idx] = processTriangle(p0, p1, p2);
+    });
+    ctx.Wait();
 
     drawArrayInternal(outTriangles);
 }
@@ -323,27 +299,19 @@ void drawElements(size_t start, size_t count) {
     ASSERT(start % 3 == 0);
 
     const int triangleCnt = int(count) / 3;
-    vector<VertexJob> vertJobs;
-    vertJobs.reserve(triangleCnt);
     vector<OutTriangle> outTriangles(triangleCnt);
 
-    for (int i = 0; i < triangleCnt; ++i) {
-        vertJobs.emplace_back(VertexJob { i, &outTriangles });
-    }
-
-    for_each(
-        execution::par_unseq,
-        vertJobs.begin(),
-        vertJobs.end(),
-        [](VertexJob& job) {
-            const int idx = job.id;
-            const VSInput* vertices = g_state.vertices;
-            const uint32_t* indices = g_state.indices;
-            const VSInput& p0 = vertices[indices[idx * 3 + 0]];
-            const VSInput& p1 = vertices[indices[idx * 3 + 1]];
-            const VSInput& p2 = vertices[indices[idx * 3 + 2]];
-            (job.triangles)->operator[](idx) = processTriangle(p0, p1, p2);
-        });
+    jobsystem::Context ctx;
+    ctx.Dispatch(triangleCnt, 8, [&](jobsystem::JobArgs args) {
+        const uint32_t idx = args.jobIndex;
+        const VSInput* vertices = g_state.vertices;
+        const uint32_t* indices = g_state.indices;
+        const VSInput& p0 = vertices[indices[idx * 3 + 0]];
+        const VSInput& p1 = vertices[indices[idx * 3 + 1]];
+        const VSInput& p2 = vertices[indices[idx * 3 + 2]];
+        outTriangles[idx] = processTriangle(p0, p1, p2);
+    });
+    ctx.Wait();
 
     drawArrayInternal(outTriangles);
 }
